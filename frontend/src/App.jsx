@@ -1,6 +1,6 @@
 import { useState } from "react";
 import CloudProviders from "./components/CloudProviders";
-import Sidebar from "./components/SIdebar";
+import Sidebar from "./components/Sidebar.jsx";
 import Topbar from "./components/Topbar";
 import Dashboard from "./pages/Dashboard";
 import AIAgent from "./pages/AIAgent";
