@@ -37,7 +37,7 @@ const sendMessage = async () => {
   try {
 
     const response = await fetch(
-      "http://127.0.0.1:8000/api/chat",
+      "https://cloudmind-backend.onrender.com/api/chat",
       {
         method: "POST",
 
