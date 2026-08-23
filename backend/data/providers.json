@@ -1,0 +1,23 @@
+{
+  "AWS": {
+    "performance": 92,
+    "security": 94,
+    "availability": 99,
+    "energy_efficiency": 82,
+    "cost_efficiency": 80
+  },
+  "Azure": {
+    "performance": 89,
+    "security": 93,
+    "availability": 99,
+    "energy_efficiency": 85,
+    "cost_efficiency": 84
+  },
+  "Google Cloud": {
+    "performance": 94,
+    "security": 92,
+    "availability": 99,
+    "energy_efficiency": 90,
+    "cost_efficiency": 88
+  }
+}
