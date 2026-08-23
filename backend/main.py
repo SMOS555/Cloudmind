@@ -50,7 +50,7 @@ app.add_middleware(
     CORSMiddleware,
 
     allow_origins=[
-        "https://cloudmind-frontend.onrender.com",
+        "https://cloudmind-frontend.onrender.com/api/chat",
         "http://localhost:5173",
     ],
 
