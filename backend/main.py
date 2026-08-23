@@ -49,8 +49,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://cloudmind-frontend.onrender.com",
         "http://localhost:5173"
-        "https://cloudmind-frontend.onrender.com"
+        
     ],
     allow_credentials=True,
     allow_methods=["*"],
