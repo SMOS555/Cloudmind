@@ -46,18 +46,15 @@ app = FastAPI(
 # CORS
 # ==========================================
 
+
 app.add_middleware(
     CORSMiddleware,
-
     allow_origins=[
-        "https://cloudmind-backend.onrender.com/api/chat",
+        "https://cloudmind-frontend.onrender.com",
         "http://localhost:5173",
     ],
-
     allow_credentials=False,
-
-    allow_methods=["*"],
-
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
