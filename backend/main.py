@@ -170,6 +170,16 @@ an advanced cloud management project.
 
 Use headings and bullet points when they improve
 clarity.
+
+Keep responses concise and well structured.
+
+Use Markdown formatting:
+- Use ## headings for major sections.
+- Use bullet points for lists.
+- Use numbered lists for procedures.
+- Use Markdown tables only when a comparison is useful.
+- Keep paragraphs short.
+- Avoid unnecessary repetition.
 """
 
     try:
@@ -189,7 +199,7 @@ clarity.
             ],
 
             temperature=0.4,
-            max_completion_tokens=1200
+            max_completion_tokens=800
         )
 
         answer = completion.choices[0].message.content

@@ -1,5 +1,6 @@
 import { useState } from "react";
-
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 function AIAgent() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
@@ -153,7 +154,13 @@ const sendMessage = async () => {
                 )}
 
                 <div className="message-bubble">
-                  {msg.text}
+                   {msg.role === "ai" ? (
+    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+      {msg.text}
+    </ReactMarkdown>
+  ) : (
+    msg.text
+  )}
                 </div>
 
               </div>
