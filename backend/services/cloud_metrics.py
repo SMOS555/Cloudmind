@@ -4,6 +4,10 @@ from datetime import datetime
 
 def get_cloud_metrics():
 
+    # ==========================================
+    # CLOUD SERVERS
+    # ==========================================
+
     servers = [
         {
             "id": "VM-001",
@@ -14,6 +18,7 @@ def get_cloud_metrics():
             "network": random.randint(30, 90),
             "status": "healthy"
         },
+
         {
             "id": "VM-002",
             "provider": "Azure",
@@ -23,6 +28,7 @@ def get_cloud_metrics():
             "network": random.randint(20, 80),
             "status": "healthy"
         },
+
         {
             "id": "VM-003",
             "provider": "GCP",
@@ -32,6 +38,7 @@ def get_cloud_metrics():
             "network": random.randint(25, 95),
             "status": "healthy"
         },
+
         {
             "id": "VM-004",
             "provider": "AWS",
@@ -43,7 +50,10 @@ def get_cloud_metrics():
         }
     ]
 
-    # Average resource usage
+    # ==========================================
+    # AVERAGE RESOURCE USAGE
+    # ==========================================
+
     avg_cpu = round(
         sum(server["cpu"] for server in servers) / len(servers)
     )
@@ -56,28 +66,71 @@ def get_cloud_metrics():
         sum(server["network"] for server in servers) / len(servers)
     )
 
-    # Warning servers
+    # ==========================================
+    # GENERATE RESOURCE HISTORY
+    # ==========================================
+
+    cpu_history = []
+    memory_history = []
+    network_history = []
+
+    for i in range(7):
+
+        cpu_history.append(
+            max(0, min(100, avg_cpu + random.randint(-15, 15)))
+        )
+
+        memory_history.append(
+            max(0, min(100, avg_memory + random.randint(-12, 12)))
+        )
+
+        network_history.append(
+            max(0, min(100, avg_network + random.randint(-15, 15)))
+        )
+
+    # Make the final point equal to the actual current value
+
+    cpu_history[-1] = avg_cpu
+    memory_history[-1] = avg_memory
+    network_history[-1] = avg_network
+
+    # ==========================================
+    # WARNING SERVERS
+    # ==========================================
+
     warning_servers = sum(
-        1 for server in servers
+        1
+        for server in servers
         if server["status"] == "warning"
     )
 
-    # Cloud health
+    # ==========================================
+    # CLOUD HEALTH
+    # ==========================================
+
     cloud_health = max(
         0,
         min(
             100,
-            100 - (warning_servers * 10) - max(0, avg_cpu - 70)
+            100
+            - (warning_servers * 10)
+            - max(0, avg_cpu - 70)
         )
     )
 
-    # Security score
+    # ==========================================
+    # SECURITY SCORE
+    # ==========================================
+
     security_score = max(
         0,
         100 - (warning_servers * 5)
     )
 
-    # Energy efficiency
+    # ==========================================
+    # ENERGY EFFICIENCY
+    # ==========================================
+
     energy_efficiency = max(
         0,
         min(
@@ -86,10 +139,16 @@ def get_cloud_metrics():
         )
     )
 
-    # Monthly cost
+    # ==========================================
+    # MONTHLY COST
+    # ==========================================
+
     monthly_cost = 42300 + (avg_cpu * 100)
 
-    # Provider counts
+    # ==========================================
+    # PROVIDER DISTRIBUTION
+    # ==========================================
+
     provider_counts = {
         "aws": 0,
         "azure": 0,
@@ -112,28 +171,50 @@ def get_cloud_metrics():
     total_servers = len(servers)
 
     provider_percentages = {
-        "aws": round(provider_counts["aws"] / total_servers * 100),
-        "azure": round(provider_counts["azure"] / total_servers * 100),
-        "gcp": round(provider_counts["gcp"] / total_servers * 100)
-    }
+        "aws": round(
+            provider_counts["aws"] / total_servers * 100
+        ),
 
-    # Infrastructure status
-    infrastructure = {
-        "compute": "Warning" if warning_servers > 0 else "Healthy",
+        "azure": round(
+            provider_counts["azure"] / total_servers * 100
+        ),
 
-        "database": "Healthy",
-
-        "network": "Warning" if avg_network > 80 else "Healthy",
-
-        "security": (
-            f"{warning_servers} Issues"
-            if warning_servers > 0
-            else "Healthy"
+        "gcp": round(
+            provider_counts["gcp"] / total_servers * 100
         )
     }
 
-    # Final response
+    # ==========================================
+    # INFRASTRUCTURE STATUS
+    # ==========================================
+
+    infrastructure = {
+
+        "compute":
+            "Warning"
+            if warning_servers > 0
+            else "Healthy",
+
+        "database":
+            "Healthy",
+
+        "network":
+            "Warning"
+            if avg_network > 80
+            else "Healthy",
+
+        "security":
+            f"{warning_servers} Issues"
+            if warning_servers > 0
+            else "Healthy"
+    }
+
+    # ==========================================
+    # FINAL RESPONSE
+    # ==========================================
+
     return {
+
         "timestamp": datetime.now().isoformat(),
 
         "cloud_health": cloud_health,
@@ -156,5 +237,12 @@ def get_cloud_metrics():
 
         "infrastructure": infrastructure,
 
-        "servers": servers
+        "servers": servers,
+
+        # NEW
+        "history": {
+            "cpu": cpu_history,
+            "memory": memory_history,
+            "network": network_history
+        }
     }
