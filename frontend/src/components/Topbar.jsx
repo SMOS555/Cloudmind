@@ -1,45 +1,132 @@
 import { useState } from "react";
 
-function Topbar() {
+function Topbar({ onLogout, user, setActivePage, awsCredentials, updateAwsCredentials }) {
+
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
+
+  // ==========================================
+  // TOGGLE SEARCH
+  // ==========================================
+
   const toggleSearch = () => {
-    setShowSearch(!showSearch);
+
+    setShowSearch((prev) => !prev);
     setShowNotifications(false);
     setShowProfile(false);
+
   };
+
+
+  // ==========================================
+  // TOGGLE NOTIFICATIONS
+  // ==========================================
 
   const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
+
+    setShowNotifications((prev) => !prev);
     setShowSearch(false);
     setShowProfile(false);
+
   };
+
+
+  // ==========================================
+  // TOGGLE PROFILE
+  // ==========================================
 
   const toggleProfile = () => {
-    setShowProfile(!showProfile);
+
+    setShowProfile((prev) => !prev);
     setShowSearch(false);
     setShowNotifications(false);
+
   };
 
+
+  // ==========================================
+  // LOGOUT
+  // ==========================================
+
+  const handleLogout = async () => {
+
+    setShowProfile(false);
+
+    if (onLogout) {
+      await onLogout();
+    }
+
+  };
+
+
+  // ==========================================
+  // USER DETAILS
+  // ==========================================
+
+  const email = user?.email || "User";
+
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    "User";
+
+
   return (
+
     <header className="topbar">
 
-      {/* BREADCRUMB */}
+      {/* ======================================
+          BREADCRUMB & AWS INDICATOR
+      ====================================== */}
 
       <div className="breadcrumb">
-        <span>CloudMind</span>
-        <span>/</span>
-        <strong>Overview</strong>
+
+        <span>
+          CloudMind
+        </span>
+
+        <span>
+          /
+        </span>
+
+        <strong>
+          Overview
+        </strong>
+
+      </div>
+
+      <div
+        className="topbar-aws-badge"
+        onClick={() => setActivePage && setActivePage("dashboard")}
+        title="AWS credentials active across all pages. Click to manage on Dashboard."
+        style={{ cursor: "pointer" }}
+      >
+        <span
+          className={`aws-status-indicator ${
+            awsCredentials?.accessKeyId && !awsCredentials?.useServerDefaults
+              ? "active"
+              : "default"
+          }`}
+        ></span>
+        <span className="topbar-aws-text">
+          AWS: {awsCredentials?.region || "ap-south-1"}
+          {awsCredentials?.accessKeyId && !awsCredentials?.useServerDefaults ? " (Custom)" : " (Server)"}
+        </span>
       </div>
 
 
-      {/* TOPBAR ACTIONS */}
+      {/* ======================================
+          TOPBAR ACTIONS
+      ====================================== */}
 
       <div className="topbar-actions">
 
-        {/* SEARCH */}
+
+        {/* ====================================
+            SEARCH
+        ==================================== */}
 
         <div className="topbar-dropdown-wrapper">
 
@@ -51,7 +138,9 @@ function Topbar() {
             ⌕
           </button>
 
+
           {showSearch && (
+
             <div className="topbar-dropdown search-dropdown">
 
               <input
@@ -65,12 +154,15 @@ function Topbar() {
               </div>
 
             </div>
+
           )}
 
         </div>
 
 
-        {/* NOTIFICATIONS */}
+        {/* ====================================
+            NOTIFICATIONS
+        ==================================== */}
 
         <div className="topbar-dropdown-wrapper">
 
@@ -79,17 +171,30 @@ function Topbar() {
             onClick={toggleNotifications}
             title="Notifications"
           >
+
             ♢
+
             <span></span>
+
           </button>
 
+
           {showNotifications && (
+
             <div className="topbar-dropdown notification-dropdown">
 
               <div className="dropdown-header">
-                <strong>Notifications</strong>
-                <span>3 new</span>
+
+                <strong>
+                  Notifications
+                </strong>
+
+                <span>
+                  3 new
+                </span>
+
               </div>
+
 
               <div className="notification-item">
 
@@ -98,9 +203,19 @@ function Topbar() {
                 </div>
 
                 <div>
-                  <strong>CPU spike detected</strong>
-                  <p>VM-03 exceeded 80% utilization.</p>
-                  <small>8 min ago</small>
+
+                  <strong>
+                    CPU spike detected
+                  </strong>
+
+                  <p>
+                    VM-03 exceeded 80% utilization.
+                  </p>
+
+                  <small>
+                    8 min ago
+                  </small>
+
                 </div>
 
               </div>
@@ -113,9 +228,19 @@ function Topbar() {
                 </div>
 
                 <div>
-                  <strong>Potential savings found</strong>
-                  <p>₹4,200/month could be saved.</p>
-                  <small>23 min ago</small>
+
+                  <strong>
+                    Potential savings found
+                  </strong>
+
+                  <p>
+                    ₹4,200/month could be saved.
+                  </p>
+
+                  <small>
+                    23 min ago
+                  </small>
+
                 </div>
 
               </div>
@@ -128,27 +253,43 @@ function Topbar() {
                 </div>
 
                 <div>
-                  <strong>Security improved</strong>
-                  <p>2 configuration issues resolved.</p>
-                  <small>1 hr ago</small>
+
+                  <strong>
+                    Security improved
+                  </strong>
+
+                  <p>
+                    2 configuration issues resolved.
+                  </p>
+
+                  <small>
+                    1 hr ago
+                  </small>
+
                 </div>
 
               </div>
 
 
               <button className="dropdown-footer">
+
                 View all notifications →
+
               </button>
 
             </div>
+
           )}
 
         </div>
 
 
-        {/* USER PROFILE */}
+        {/* ====================================
+            USER PROFILE
+        ==================================== */}
 
-        <div className="topbar-dropdown-wrapper">
+        <div className="topbar-dropdown-wrapper profile-wrapper">
+
 
           <button
             className="user-profile"
@@ -156,57 +297,152 @@ function Topbar() {
           >
 
             <div className="avatar">
-              U
+              {displayName.charAt(0).toUpperCase()}
             </div>
+
 
             <div className="user-info">
-              <strong>User</strong>
-              <span>Administrator</span>
+
+              <strong>
+                {displayName}
+              </strong>
+
+              <span>
+                Administrator
+              </span>
+
             </div>
 
-            <span className="chevron">
+
+            <span
+              className={`chevron ${
+                showProfile ? "chevron-open" : ""
+              }`}
+            >
               ▾
             </span>
 
           </button>
 
 
+          {/* ==================================
+              PROFILE DROPDOWN
+          ================================== */}
+
           {showProfile && (
+
             <div className="topbar-dropdown profile-dropdown">
+
+
+              {/* PROFILE HEADER */}
 
               <div className="profile-header">
 
                 <div className="avatar large">
-                  U
+                  {displayName.charAt(0).toUpperCase()}
                 </div>
 
-                <div>
-                  <strong>User</strong>
-                  <span>Administrator</span>
+
+                <div className="profile-user-details">
+
+                  <strong>
+                    {displayName}
+                  </strong>
+
+                  <span>
+                    {email}
+                  </span>
+
                 </div>
 
               </div>
 
 
-              <button className="profile-menu-item">
-                👤 Profile
-              </button>
-
-              <button className="profile-menu-item">
-                ⚙ Settings
-              </button>
-
-              <button className="profile-menu-item">
-                ◉ Account
-              </button>
+              {/* DIVIDER */}
 
               <div className="dropdown-divider"></div>
 
-              <button className="profile-menu-item logout">
-                ↪ Sign out
+
+              {/* PROFILE */}
+
+              <button
+                className="profile-menu-item"
+                type="button"
+              >
+
+                <span className="menu-icon">
+                  👤
+                </span>
+
+                <span>
+                  Profile
+                </span>
+
               </button>
 
+
+              {/* SETTINGS */}
+
+              <button
+                className="profile-menu-item"
+                type="button"
+              >
+
+                <span className="menu-icon">
+                  ⚙
+                </span>
+
+                <span>
+                  Settings
+                </span>
+
+              </button>
+
+
+              {/* ACCOUNT */}
+
+              <button
+                className="profile-menu-item"
+                type="button"
+              >
+
+                <span className="menu-icon">
+                  ◉
+                </span>
+
+                <span>
+                  Account
+                </span>
+
+              </button>
+
+
+              {/* DIVIDER */}
+
+              <div className="dropdown-divider"></div>
+
+
+              {/* LOGOUT */}
+
+              <button
+                className="profile-menu-item logout"
+                type="button"
+                onClick={handleLogout}
+              >
+
+                <span className="menu-icon">
+                  ↪
+                </span>
+
+                <span>
+                  Sign out
+                </span>
+
+              </button>
+
+
             </div>
+
           )}
 
         </div>
@@ -214,7 +450,9 @@ function Topbar() {
       </div>
 
     </header>
+
   );
+
 }
 
 export default Topbar;

@@ -1,6 +1,11 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const API_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  "http://127.0.0.1:8000";
+
 function AIAgent() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
@@ -38,7 +43,7 @@ const sendMessage = async () => {
   try {
 
     const response = await fetch(
-      "https://cloudmind-backend.onrender.com/api/chat",
+      `${API_BASE_URL}/api/chat`,
       {
         method: "POST",
 

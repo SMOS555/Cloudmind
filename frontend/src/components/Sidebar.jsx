@@ -5,9 +5,7 @@ function Sidebar({ activePage, setActivePage }) {
     { id: "providers", icon: "☁", label: "Cloud Providers" },
     { id: "load", icon: "⇄", label: "Load Balancing" },
     { id: "security", icon: "◉", label: "Security" },
-    { id: "cost", icon: "◆", label: "Cost Optimizer" },
     { id: "energy", icon: "ϟ", label: "Energy" },
-    { id: "analytics", icon: "▥", label: "Analytics" },
   ];
 
   return (
