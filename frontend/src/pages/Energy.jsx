@@ -8,6 +8,7 @@ function Energy({ awsCredentials }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [hours, setHours] = useState(24);
+  const [chartMetric, setChartMetric] = useState("efficiency");
 
   const loadEnergy = async () => {
     setLoading(true);
@@ -492,16 +493,37 @@ function Energy({ awsCredentials }) {
               HISTORICAL ANALYSIS
             </span>
 
-            <h2>Efficiency Trend</h2>
+            <h2>{chartMetric === "efficiency" ? "Efficiency Trend" : "CloudWatch CPU Trend"}</h2>
 
             <p>
-              Hourly efficiency calculated from CloudWatch utilization.
+              {chartMetric === "efficiency"
+                ? "Hourly efficiency score (0-100) calculated continuously from CloudWatch compute utilization."
+                : "Hourly average EC2 CPU utilization percentage across monitored instances."}
             </p>
           </div>
 
-          <span className="energy-chart-period">
-            {hours === 168 ? "7D" : `${hours}H`}
-          </span>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div className="chart-metric-switch">
+              <button
+                type="button"
+                className={`metric-switch-btn ${chartMetric === "efficiency" ? "active" : ""}`}
+                onClick={() => setChartMetric("efficiency")}
+              >
+                Efficiency
+              </button>
+              <button
+                type="button"
+                className={`metric-switch-btn ${chartMetric === "cpu" ? "active" : ""}`}
+                onClick={() => setChartMetric("cpu")}
+              >
+                CPU %
+              </button>
+            </div>
+
+            <span className="energy-chart-period">
+              {hours === 168 ? "7D" : `${hours}H`}
+            </span>
+          </div>
 
         </div>
 
@@ -530,28 +552,37 @@ function Energy({ awsCredentials }) {
               <div className="chart-bars">
 
                 {trend.map((item, index) => {
-
-                  const value = Number(
+                  const effVal = Number(
                     item.efficiency ??
                     item.score ??
                     item.value ??
                     0
                   );
+                  const cpuVal = Number(
+                    item.average_cpu ??
+                    item.cpu ??
+                    0
+                  );
+                  const displayVal = chartMetric === "efficiency" ? effVal : cpuVal;
+                  const barColor = chartMetric === "efficiency"
+                    ? (displayVal >= 70 ? "#4eae7a" : displayVal >= 40 ? "#eab308" : "#f43f5e")
+                    : (displayVal > 80 ? "#f43f5e" : displayVal > 50 ? "#eab308" : "#3b82f6");
 
                   return (
                     <div
                       className="chart-column"
                       key={index}
-                      title={`${value}/100`}
+                      title={`${item.label || `Hour ${index + 1}`}: Efficiency ${effVal.toFixed(1)}/100 | CPU ${cpuVal.toFixed(2)}%`}
                     >
 
                       <div
                         className="chart-bar"
                         style={{
                           height: `${Math.max(
-                            3,
-                            Math.min(value, 100)
+                            2,
+                            Math.min(displayVal, 100)
                           )}%`,
+                          background: barColor,
                         }}
                       />
 

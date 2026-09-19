@@ -7196,7 +7196,7 @@ nav {
 
 .chart-bars {
   position: absolute;
-  inset: 0 0 0;
+  inset: 0 0 23px;
   display: flex;
   align-items: flex-end;
   gap: 5px;
@@ -7204,6 +7204,7 @@ nav {
 }
 
 .chart-column {
+  position: relative;
   height: 100%;
   flex: 1;
   min-width: 4px;
@@ -7217,24 +7218,56 @@ nav {
 .chart-bar {
   width: 100%;
   max-width: 18px;
-  min-height: 3px;
+  min-height: 2px;
   border-radius: 3px 3px 1px 1px;
   background: #4eae7a;
-  opacity: 0.8;
-  transition: height 0.3s ease;
+  opacity: 0.85;
+  transition: height 0.3s ease, background-color 0.2s ease;
 }
 
 .chart-bar:hover {
   opacity: 1;
+  filter: brightness(1.2);
 }
 
 .chart-column span {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   height: 18px;
   margin-top: 5px;
   overflow: hidden;
-  color: #4e5760;
+  color: #64748b;
   font-size: 8px;
   white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-metric-switch {
+  display: flex;
+  gap: 4px;
+  background: #090e13;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.metric-switch-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.metric-switch-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
 }
 
 /* EMPTY CHART */

@@ -89,31 +89,40 @@ def get_power_estimate(instance_type):
 
 def calculate_efficiency_score(cpu):
     """
-    Convert CPU utilization into a relative efficiency score.
+    Convert CPU utilization into a continuous efficiency score (0-100).
 
-    The score rewards useful utilization while avoiding the
-    assumption that 100% CPU is automatically ideal.
+    In modern server energy models, idle servers consume ~40% base electricity.
+    Energy efficiency (useful work per watt) rises smoothly from base idle levels (~25%)
+    up to optimal operating zones (60-75% CPU -> ~95% efficiency), with minor thermal
+    penalties beyond 80% CPU.
+
+    Using a continuous function avoids flat step-quantization buckets.
     """
+    if cpu is None or cpu <= 0:
+        return 0.0
 
-    if cpu <= 0:
-        return 0
+    try:
+        cpu_val = float(cpu)
+    except (ValueError, TypeError):
+        return 0.0
 
-    if cpu < 10:
-        return 45
+    if cpu_val <= 0:
+        return 0.0
 
-    if cpu < 25:
-        return 65
+    if cpu_val < 15.0:
+        # Smooth curve from 25% (near idle) to 60% at 15% CPU
+        score = 25.0 + (cpu_val / 15.0) * 35.0
+    elif cpu_val < 70.0:
+        # Optimal work zone: smoothly scales from 60% up to 95% at 70% CPU
+        score = 60.0 + ((cpu_val - 15.0) / 55.0) * 35.0
+    elif cpu_val < 85.0:
+        # Sweet spot plateau around 95-98%
+        score = 95.0 + ((cpu_val - 70.0) / 15.0) * 3.0
+    else:
+        # High saturation / thermal penalty
+        score = 98.0 - ((cpu_val - 85.0) / 15.0) * 15.0
 
-    if cpu < 50:
-        return 85
-
-    if cpu < 75:
-        return 95
-
-    if cpu < 90:
-        return 88
-
-    return 78
+    return round(max(0.0, min(100.0, score)), 1)
 
 
 def get_status(cpu):
@@ -904,6 +913,11 @@ def get_energy(
             "label": label,
 
             "average_cpu": round(
+                hourly_average,
+                2
+            ),
+
+            "cpu": round(
                 hourly_average,
                 2
             ),
