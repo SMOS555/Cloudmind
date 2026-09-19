@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudMind AI - Project Presentation Deck</title>
+  <style>
+    :root {
+      --bg: #090e1a;
+      --card-bg: #111a2e;
+      --card-border: #1e293b;
+      --primary: #2563eb;
+      --primary-glow: rgba(37, 99, 235, 0.2);
+      --green: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .deck-header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .deck-header h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .deck-header p {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+    .deck-actions {
+      margin-top: 15px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      padding: 8px 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .slide-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 36px 40px;
+      margin-bottom: 36px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      page-break-after: always;
+      position: relative;
+    }
+    .slide-num {
+      position: absolute;
+      top: 24px;
+      right: 32px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.05);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .slide-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+    .slide-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 24px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+    .sub-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .sub-card.blue { border-left: 4px solid var(--primary); }
+    .sub-card.amber { border-left: 4px solid var(--amber); }
+    .sub-card.green { border-left: 4px solid var(--green); }
+    .sub-card h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .sub-card ul {
+      list-style-type: none;
+    }
+    .sub-card li {
+      position: relative;
+      padding-left: 18px;
+      margin-bottom: 8px;
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+    .sub-card li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+    .sub-card.amber li::before { color: var(--amber); }
+    .sub-card.green li::before { color: var(--green); }
+    .screenshot-box {
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .screenshot-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .deck-actions { display: none; }
+      .slide-card { border: 1px solid #ddd; box-shadow: none; page-break-after: always; background: #fff; color: #000; }
+      .sub-card { background: #f9f9f9; color: #000; border: 1px solid #ccc; }
+      .sub-card li { color: #333; }
+      .slide-title { color: #000; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="deck-header">
+      <h1>CloudMind AI: Project Presentation Deck</h1>
+      <p>Autonomous Multi-Region AWS Telemetry, Automated Security Remediation & Green Cloud Computing</p>
+      <div class="deck-actions">
+        <button class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <a class="btn" href="CloudMind_AI_Project_Presentation.pptx" download style="background: #10b981;">📥 Download PowerPoint (.pptx)</a>
+      </div>
+    </div>
+
+    <!-- SLIDE 1 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 1 / 14</span>
+      <div class="slide-eyebrow">Cloud Computing Academic Project</div>
+      <h2 class="slide-title" style="font-size: 32px;">CloudMind AI: Autonomous Cloud Infrastructure & Energy Management</h2>
+      <p style="color: var(--text-muted); font-size: 16px; margin-bottom: 24px;">
+        A Full-Stack Platform for AWS Multi-Region Telemetry, Automated Security Posture Remediation, and Green Computing.
+      </p>
+      <div class="grid-3">
+        <div class="sub-card blue">
+          <h3>Frontend</h3>
+          <ul>
+            <li>React 18 + Vite SPA</li>
+            <li>Glassmorphic UI Design</li>
+            <li>Zero-Trust Credential Sync</li>
+          </ul>
+        </div>
+        <div class="sub-card amber">
+          <h3>Backend Gateway</h3>
+          <ul>
+            <li>FastAPI (Python 3.13)</li>
+            <li>Boto3 AWS SDK</li>
+            <li>CloudWatch & STS Integration</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>Intelligence Engine</h3>
+          <ul>
+            <li>Continuous Energy Curves</li>
+            <li>Security Score & CLI Fixes</li>
+            <li>Conversational AI Agent</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 2 / 14</span>
+      <div class="slide-eyebrow">Executive Overview</div>
+      <h2 class="slide-title">Project Abstract & Key Deliverables</h2>
+      <div class="grid-3">
+        <div class="sub-card blue">
+          <h3>Centralized Telemetry</h3>
+          <ul>
+            <li>Multi-region AWS infrastructure cockpit.</li>
+            <li>Eliminates hopping across 5+ AWS console pages.</li>
+            <li>Real-time CPU and node health tracking.</li>
+          </ul>
+        </div>
+        <div class="sub-card amber">
+          <h3>Automated Security</h3>
+          <ul>
+            <li>Zero-trust ingress security group scanner.</li>
+            <li>Unencrypted EBS storage volume detection.</li>
+            <li>Generates 1-click AWS CLI remediation scripts.</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>Green Computing</h3>
+          <ul>
+            <li>Continuous SPECpower energy modeling.</li>
+            <li>Live kWh consumption and carbon footprint.</li>
+            <li>Dual-metric switch for CPU vs Efficiency.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 3 / 14</span>
+      <div class="slide-eyebrow">Problem Statement</div>
+      <h2 class="slide-title">Industry Pain Points & Current Limitations</h2>
+      <div class="grid-2">
+        <div class="sub-card blue">
+          <h3>1. Fragmented Cloud Visibility</h3>
+          <ul>
+            <li>Engineers lack a single unified view across AWS accounts and regions.</li>
+            <li>AWS CloudWatch dashboards require manual setup and lack contextual correlation.</li>
+          </ul>
+        </div>
+        <div class="sub-card amber">
+          <h3>2. Critical Security Misconfigurations</h3>
+          <ul>
+            <li>Over 80% of data breaches stem from simple misconfigurations.</li>
+            <li>Exposed SSH (22) and RDP (3389) open to 0.0.0.0/0 on the public internet.</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>3. The Idle Energy Paradox</h3>
+          <ul>
+            <li>Idle servers draw up to 40% base electricity without performing productive work.</li>
+            <li>Existing tools fail to provide continuous carbon and energy modeling.</li>
+          </ul>
+        </div>
+        <div class="sub-card blue">
+          <h3>4. Credential Sprawl & Friction</h3>
+          <ul>
+            <li>Repeated credential prompts across pages increase security leakage risk.</li>
+            <li>Need for unified STS verification and client-side safe persistence.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 4 / 14</span>
+      <div class="slide-eyebrow">The Solution</div>
+      <h2 class="slide-title">CloudMind AI: Architecture & Core Capabilities</h2>
+      <div class="grid-3">
+        <div class="sub-card blue">
+          <h3>Global Connection Center</h3>
+          <ul>
+            <li>Single source of AWS authentication on Dashboard.</li>
+            <li>Real-time STS caller identity validation.</li>
+            <li>Multi-region selector with instant switching.</li>
+          </ul>
+        </div>
+        <div class="sub-card amber">
+          <h3>Automated Security Engine</h3>
+          <ul>
+            <li>Zero-trust port and ingress rules evaluation.</li>
+            <li>Storage volume encryption posture audit.</li>
+            <li>Copy-paste ready AWS CLI fixes.</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>Green Computing & AI</h3>
+          <ul>
+            <li>Continuous energy curve without flatlining.</li>
+            <li>Real-time kWh and carbon estimations.</li>
+            <li>Autonomous natural language cloud assistant.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 5 / 14</span>
+      <div class="slide-eyebrow">Technical Blueprint</div>
+      <h2 class="slide-title">System Architecture & Tech Stack</h2>
+      <div class="grid-3">
+        <div class="sub-card blue">
+          <h3>Frontend (Client)</h3>
+          <ul>
+            <li>React 18 Single Page Application.</li>
+            <li>Vite for instantaneous bundling.</li>
+            <li>Reactive global credentials synchronization.</li>
+          </ul>
+        </div>
+        <div class="sub-card amber">
+          <h3>Backend (API Gateway)</h3>
+          <ul>
+            <li>FastAPI (Python 3.13) async REST gateway.</li>
+            <li>Pydantic schemas with strict validation.</li>
+            <li>High-throughput non-blocking architecture.</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>Cloud Integration</h3>
+          <ul>
+            <li>AWS Boto3 SDK for multi-region access.</li>
+            <li>EC2, CloudWatch, and STS integration.</li>
+            <li>Pricing API for grid emission factors.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 6 / 14</span>
+      <div class="slide-eyebrow">Process Lifecycle</div>
+      <h2 class="slide-title">End-to-End Operational Workflow</h2>
+      <div class="grid-2">
+        <div class="sub-card blue">
+          <h3>Phase 1: Authenticate & Ingest</h3>
+          <ul>
+            <li><strong>Connect:</strong> Admin inputs AWS Access Key, Secret Key, and Region.</li>
+            <li><strong>Validate:</strong> Backend calls AWS STS to verify Account ID and Caller ARN.</li>
+            <li><strong>Ingest:</strong> Parallel Boto3 calls retrieve CloudWatch metrics and EC2 inventory.</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>Phase 2: Analyze & Remediate</h3>
+          <ul>
+            <li><strong>Security Audit:</strong> Evaluates inbound rules, unencrypted EBS, and IMDS posture.</li>
+            <li><strong>Energy Curve:</strong> Evaluates server power consumption and carbon footprint.</li>
+            <li><strong>Remediation:</strong> Emits ready-to-run AWS CLI commands for immediate execution.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 7 / 14</span>
+      <div class="slide-eyebrow">Live Demonstration</div>
+      <h2 class="slide-title">Implementation Screenshot: Energy Intelligence</h2>
+      <div class="screenshot-box">
+        <img src="docs/screenshots/energy_efficiency_trend.png" alt="Energy Efficiency Trend Screenshot" />
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-top: 10px; text-align: center;">
+        Figure: Real-time 24-hour telemetry trend visualization rendering hourly efficiency scores, grid coordinate alignment, and historical tracking.
+      </p>
+    </div>
+
+    <!-- SLIDE 8 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 8 / 14</span>
+      <div class="slide-eyebrow">Engineering Rigor</div>
+      <h2 class="slide-title">Debugging the 50% Flatline Bug ("Is this def wrong?")</h2>
+      <div class="grid-2">
+        <div class="sub-card amber">
+          <h3>The Root Cause</h3>
+          <ul>
+            <li><strong>Backend Step Quantization:</strong> <code>if cpu &lt; 10: return 45</code>. For idle EC2 instances (0.2-3% CPU), every hour was rounded to constant 45.</li>
+            <li><strong>CSS Offset:</strong> <code>.chart-bars</code> had <code>inset: 0 0 0</code> while grid lines had <code>inset: 0 0 23px</code>. 45% + 23px label placed every bar on the 50% grid line!</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>The Engineering Solution</h3>
+          <ul>
+            <li><strong>Continuous Energy Curve:</strong> Implemented cubic power curve reflecting true server SPECpower energy consumption.</li>
+            <li><strong>Synchronized CSS:</strong> Set <code>inset: 0 0 23px</code> and positioned labels outside flex height.</li>
+            <li><strong>Added Metric Switch:</strong> Allowed operators to toggle between Efficiency and CloudWatch CPU %.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 -->
+    <div class="slide-card">
+      <span class="slide-num">Slide 9 / 14</span>
+      <div class="slide-eyebrow">Verification</div>
+      <h2 class="slide-title">Quality Assurance & Production Verification</h2>
+      <div class="grid-3">
+        <div class="sub-card blue">
+          <h3>Backend Quality</h3>
+          <ul>
+            <li>FastAPI TestClient integration.</li>
+            <li>Python py_compile 0 errors.</li>
+            <li>AWS STS authentication verified.</li>
+          </ul>
+        </div>
+        <div class="sub-card amber">
+          <h3>Frontend Build</h3>
+          <ul>
+            <li>Vite production build passed in 801ms.</li>
+            <li>Zero ESLint or syntax errors.</li>
+            <li>Clean responsive layout.</li>
+          </ul>
+        </div>
+        <div class="sub-card green">
+          <h3>Deployment</h3>
+          <ul>
+            <li>GitHub: SMOS555/Cloudmind.</li>
+            <li>Branch: main (Clean sync).</li>
+            <li>All changes committed and pushed.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10 -->
+    <div class="slide-card" style="text-align: center;">
+      <span class="slide-num">Slide 10 / 10</span>
+      <div class="slide-eyebrow">Project Defense</div>
+      <h2 class="slide-title" style="font-size: 36px; margin-top: 20px;">Thank You!</h2>
+      <p style="color: var(--text-muted); font-size: 18px; margin-bottom: 24px;">
+        Open for Questions, Evaluation & Live Code Demonstration.
+      </p>
+      <p style="color: var(--primary); font-size: 15px;">
+        GitHub Repository: <a href="https://github.com/SMOS555/Cloudmind" target="_blank" style="color: #60a5fa;">https://github.com/SMOS555/Cloudmind</a>
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>
