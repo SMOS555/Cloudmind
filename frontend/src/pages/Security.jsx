@@ -51,6 +51,13 @@ function Security({ awsCredentials, updateAwsCredentials }) {
   // Show credentials drawer / modal
   const [showCredsDrawer, setShowCredsDrawer] = useState(false);
 
+  // Self-Healing Cloud Auto-Remediation & Rollback State
+  const [remediatedFindingMap, setRemediatedFindingMap] = useState({});
+  const [remediatingFindingId, setRemediatingFindingId] = useState(null);
+  const [rollingBackFindingId, setRollingBackFindingId] = useState(null);
+  const [auditLog, setAuditLog] = useState([]);
+  const [remediationToast, setRemediationToast] = useState(null);
+
   // ============================================================
   // SYNC WITH GLOBAL AWS CREDENTIALS (FROM DASHBOARD OR STORAGE)
   // ============================================================
@@ -216,11 +223,160 @@ function Security({ awsCredentials, updateAwsCredentials }) {
     setTimeout(() => setCopiedId(null), 2500);
   };
 
+  // Load Audit Log on Mount & after remediation
+  const loadAuditLog = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/aws/audit-log`);
+      if (res.ok) {
+        const d = await res.json();
+        setAuditLog(d.audit_log || []);
+      }
+    } catch (e) {
+      console.warn("Audit log fetch error:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadAuditLog();
+  }, []);
+
+  // 1-Click Auto-Remediation Handler
+  const handleAutoRemediate = async (finding) => {
+    setRemediatingFindingId(finding.id);
+    setRemediationToast({
+      message: `Executing 1-Click Auto-Remediation for ${finding.id}...`,
+      type: "info",
+    });
+
+    const activeCreds = awsCredentials;
+    const isServer = activeCreds ? activeCreds.useServerDefaults : useServerDefaults;
+    const key = (activeCreds?.accessKeyId || accessKeyId || "").trim();
+    const secret = (activeCreds?.secretAccessKey || secretAccessKey || "").trim();
+    const token = (activeCreds?.sessionToken || sessionToken || "").trim();
+
+    const payload = {
+      finding_id: finding.id,
+      remediation_type: finding.remediation_type || (finding.category === "Host Hardening" ? "ENFORCE_IMDSV2" : "REVOKE_INGRESS_RULE"),
+      resource_id: finding.resource,
+      region: securityData?.region || region || "ap-south-1",
+      security_group_id: finding.security_group_id,
+      protocol: finding.protocol || "tcp",
+      port: finding.port,
+      cidr: finding.cidr || "0.0.0.0/0",
+      instance_id: finding.instance_id || finding.resource,
+      actor: "Safwaan Mohamed S (25BCE1188)",
+    };
+
+    if (!isServer && key && secret) {
+      payload.aws_access_key_id = key;
+      payload.aws_secret_access_key = secret;
+      if (token) payload.aws_session_token = token;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/aws/remediate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Remediation failed.");
+
+      setRemediatedFindingMap((prev) => ({
+        ...prev,
+        [finding.id]: {
+          status: "REMEDIATED",
+          action_id: data.action_id,
+          rollback_token: data.rollback_token,
+          mode: data.mode,
+          details: data.details,
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      }));
+
+      loadAuditLog();
+
+      setRemediationToast({
+        message: `✓ ${finding.id} Auto-Remediated! ${data.mode === "live_aws" ? "Live AWS rule revoked." : "Quarantined in DevSecOps Sandbox."}`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      setRemediationToast({
+        message: `Auto-Remediation failed: ${err.message}`,
+        type: "error",
+      });
+    } finally {
+      setRemediatingFindingId(null);
+    }
+  };
+
+  // Rollback Rule Handler
+  const handleRollback = async (findingId, rollbackToken) => {
+    setRollingBackFindingId(findingId);
+    setRemediationToast({
+      message: `Reversing remediation & rolling back rule for ${findingId}...`,
+      type: "info",
+    });
+
+    const activeCreds = awsCredentials;
+    const isServer = activeCreds ? activeCreds.useServerDefaults : useServerDefaults;
+    const key = (activeCreds?.accessKeyId || accessKeyId || "").trim();
+    const secret = (activeCreds?.secretAccessKey || secretAccessKey || "").trim();
+    const token = (activeCreds?.sessionToken || sessionToken || "").trim();
+
+    const payload = {
+      rollback_token: rollbackToken,
+      finding_id: findingId,
+      region: securityData?.region || region || "ap-south-1",
+      actor: "Safwaan Mohamed S (25BCE1188)",
+    };
+
+    if (!isServer && key && secret) {
+      payload.aws_access_key_id = key;
+      payload.aws_secret_access_key = secret;
+      if (token) payload.aws_session_token = token;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/aws/remediate/rollback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Rollback failed.");
+
+      setRemediatedFindingMap((prev) => {
+        const next = { ...prev };
+        delete next[findingId];
+        return next;
+      });
+
+      loadAuditLog();
+
+      setRemediationToast({
+        message: `✓ Rule successfully restored for ${findingId}. Safety rollback verified.`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      setRemediationToast({
+        message: `Rollback failed: ${err.message}`,
+        type: "error",
+      });
+    } finally {
+      setRollingBackFindingId(null);
+    }
+  };
+
   // ============================================================
   // DERIVED METRICS & FILTERED DATA
   // ============================================================
-  const score = securityData?.security_score ?? 100;
-  const riskLevel = securityData?.risk_level ?? "Low";
+  const remediatedCount = Object.keys(remediatedFindingMap).length;
+  const baseScore = securityData?.security_score ?? 100;
+  const score = Math.min(100, baseScore + (remediatedCount * 15));
+  const riskLevel = score >= 80 ? "Low" : score >= 60 ? "Medium" : "Critical";
   const instances = securityData?.instances ?? [];
   const findings = securityData?.findings ?? [];
   const securityGroups = securityData?.security_groups ?? [];
@@ -518,6 +674,20 @@ function Security({ awsCredentials, updateAwsCredentials }) {
         </div>
       )}
 
+      {/* Self-Healing Auto-Remediation Toast Alert */}
+      {remediationToast && (
+        <div className={`sec-toast-banner ${remediationToast.type}`}>
+          <div className="toast-icon">
+            {remediationToast.type === "success" ? "🛡️" : remediationToast.type === "info" ? "⚡" : "⚠️"}
+          </div>
+          <div className="toast-content">
+            <strong>{remediationToast.type === "success" ? "Self-Healing Cloud Policy Applied" : "DevSecOps Controller"}</strong>
+            <p>{remediationToast.message}</p>
+          </div>
+          <button className="btn-close-toast" onClick={() => setRemediationToast(null)}>✕</button>
+        </div>
+      )}
+
       {/* =======================================================
           EXECUTIVE SECURITY SCORE & KPI BAR
       ======================================================= */}
@@ -570,7 +740,7 @@ function Security({ awsCredentials, updateAwsCredentials }) {
             <span className="stat-icon">🚨</span>
           </div>
           <div className="stat-value text-red">
-            {(securityData?.severity_breakdown?.critical ?? 0) + (securityData?.severity_breakdown?.high ?? 0)}
+            {findings.filter((f) => (f.severity === "Critical" || f.severity === "High") && !remediatedFindingMap[f.id]).length}
           </div>
           <div className="stat-meta">
             <span className="tag-critical">{securityData?.severity_breakdown?.critical ?? 0} Critical</span>
@@ -599,6 +769,18 @@ function Security({ awsCredentials, updateAwsCredentials }) {
           <div className="stat-value text-amber">{securityData?.unencrypted_volumes_count ?? 0}</div>
           <div className="stat-meta">
             <span>Data-at-rest unencrypted</span>
+          </div>
+        </div>
+
+        {/* STAT 5: SELF-HEALED ACTIVE PROTECTIONS */}
+        <div className="sec-stat-card healing">
+          <div className="stat-header">
+            <span>SELF-HEALED RULES</span>
+            <span className="stat-icon">⚡</span>
+          </div>
+          <div className="stat-value text-green">{remediatedCount}</div>
+          <div className="stat-meta">
+            <span className="text-green">✓ Active Safety Protection</span>
           </div>
         </div>
       </div>
@@ -637,6 +819,17 @@ function Security({ awsCredentials, updateAwsCredentials }) {
         >
           <span className="tab-icon">🛡️</span>
           <span>Security Groups & Ports ({securityGroups.length})</span>
+        </button>
+
+        <button
+          className={`sec-tab-btn ${activeTab === "audit_log" ? "active" : ""}`}
+          onClick={() => {
+            setActiveTab("audit_log");
+            loadAuditLog();
+          }}
+        >
+          <span className="tab-icon">⚡</span>
+          <span>Self-Healing Audit Log {auditLog.length > 0 && `(${auditLog.length})`}</span>
         </button>
 
         <button
@@ -1070,6 +1263,36 @@ function Security({ awsCredentials, updateAwsCredentials }) {
                                       </button>
                                     </div>
                                   )}
+
+                                  {f.can_auto_remediate && (
+                                    <div className="inst-auto-remediate-bar">
+                                      {remediatedFindingMap[f.id] ? (
+                                        <div className="inst-remediated-chip">
+                                          <span>✓ Remediated & Live Protected</span>
+                                          <button
+                                            className="btn-link-rollback"
+                                            disabled={rollingBackFindingId === f.id}
+                                            onClick={() =>
+                                              handleRollback(
+                                                f.id,
+                                                remediatedFindingMap[f.id].rollback_token
+                                              )
+                                            }
+                                          >
+                                            {rollingBackFindingId === f.id ? "Rolling back..." : "↺ Rollback"}
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          className="btn-inst-remediate-now"
+                                          disabled={remediatingFindingId === f.id}
+                                          onClick={() => handleAutoRemediate(f)}
+                                        >
+                                          {remediatingFindingId === f.id ? "⚡ Quarantining..." : "⚡ 1-Click Auto-Remediate"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1184,6 +1407,59 @@ function Security({ awsCredentials, updateAwsCredentials }) {
                           <code>{finding.remediation_cli}</code>
                         </div>
                       )}
+
+                      {/* 1-CLICK AUTO-REMEDIATION & SAFETY ROLLBACK */}
+                      {finding.can_auto_remediate && (
+                        <div className="auto-remediation-action-bar">
+                          {remediatedFindingMap[finding.id] ? (
+                            <div className="remediation-success-pill">
+                              <span className="success-icon">✓</span>
+                              <div className="remediation-pill-text">
+                                <strong>Auto-Remediated & Live Protected</strong>
+                                <small>
+                                  {remediatedFindingMap[finding.id].mode === "live_aws"
+                                    ? "Live AWS Security Group rule revoked"
+                                    : "Quarantined in DevSecOps Sandbox Mode"}{" "}
+                                  • Ref: <code>{remediatedFindingMap[finding.id].action_id}</code>
+                                </small>
+                              </div>
+                              <button
+                                className="btn-rollback-pill"
+                                disabled={rollingBackFindingId === finding.id}
+                                onClick={() =>
+                                  handleRollback(
+                                    finding.id,
+                                    remediatedFindingMap[finding.id].rollback_token
+                                  )
+                                }
+                              >
+                                {rollingBackFindingId === finding.id ? "Rolling back..." : "↺ Rollback Rule"}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="remediation-cta-row">
+                              <button
+                                className="btn-auto-remediate-glow"
+                                disabled={remediatingFindingId === finding.id}
+                                onClick={() => handleAutoRemediate(finding)}
+                              >
+                                {remediatingFindingId === finding.id ? (
+                                  <>
+                                    <span className="remediate-spin">⚡</span> Executing Policy Quarantine...
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="lightning-icon">⚡</span> 1-Click Auto-Remediate Rule
+                                  </>
+                                )}
+                              </button>
+                              <span className="remediation-guarantee">
+                                🛡️ Zero-Downtime Safe: Instant 1-click rollback token generated
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1278,6 +1554,141 @@ function Security({ awsCredentials, updateAwsCredentials }) {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =======================================================
+          TAB: SELF-HEALING AUDIT LOG & ROLLBACK REGISTRY
+      ======================================================= */}
+      {activeTab === "audit_log" && (
+        <div className="sec-tab-content">
+          <div className="sec-panel">
+            <div className="panel-title-row">
+              <div>
+                <h2>⚡ Self-Healing Cloud Audit Trail & Safety Rollback Registry</h2>
+                <p>
+                  Real-time cryptographic DevSecOps ledger tracking all 1-click auto-remediations, policy enforcements, and zero-downtime rollbacks.
+                </p>
+              </div>
+              <div className="panel-actions-group">
+                <button className="btn-secondary" onClick={loadAuditLog}>
+                  ↻ Refresh Audit Log
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    const jsonStr = JSON.stringify(auditLog, null, 2);
+                    navigator.clipboard.writeText(jsonStr);
+                    alert("DevSecOps Audit Log exported to clipboard in JSON format!");
+                  }}
+                >
+                  📋 Export Audit Trail (JSON)
+                </button>
+              </div>
+            </div>
+
+            {/* Audit Summary Cards */}
+            <div className="audit-stats-strip">
+              <div className="audit-stat-card">
+                <span>Total Actions Executed</span>
+                <strong>{auditLog.length}</strong>
+              </div>
+              <div className="audit-stat-card green">
+                <span>Active Protections</span>
+                <strong>{auditLog.filter((a) => a.status === "REMEDIATED").length}</strong>
+              </div>
+              <div className="audit-stat-card amber">
+                <span>Safety Rollbacks</span>
+                <strong>{auditLog.filter((a) => a.status === "ROLLED_BACK").length}</strong>
+              </div>
+              <div className="audit-stat-card purple">
+                <span>Live SecOps Operator</span>
+                <strong>Safwaan Mohamed S (25BCE1188)</strong>
+              </div>
+            </div>
+
+            {auditLog.length === 0 ? (
+              <div className="sec-empty-state">
+                <div className="empty-icon text-amber">⚡</div>
+                <h3>No Auto-Remediation Actions Logged Yet</h3>
+                <p>
+                  Go to the <strong>Vulnerability Findings</strong> tab and click <strong>[⚡ 1-Click Auto-Remediate Rule]</strong> next to any open port to trigger an automated self-healing action with cryptographic rollback safety!
+                </p>
+                <button className="btn-secondary" onClick={() => setActiveTab("findings")}>
+                  Inspect Findings & Auto-Remediate
+                </button>
+              </div>
+            ) : (
+              <div className="audit-table-wrapper">
+                <table className="audit-log-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp (UTC)</th>
+                      <th>Action ID / Rollback Key</th>
+                      <th>Finding & Target</th>
+                      <th>Remediation Action</th>
+                      <th>Execution Mode</th>
+                      <th>Status</th>
+                      <th>Safety Reversal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLog.map((log) => (
+                      <tr key={log.action_id} className={`audit-row ${log.status.toLowerCase()}`}>
+                        <td>
+                          <div className="audit-time">
+                            <strong>{new Date(log.timestamp).toLocaleTimeString()}</strong>
+                            <small>{new Date(log.timestamp).toLocaleDateString()}</small>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="audit-tokens">
+                            <code>{log.action_id}</code>
+                            <span className="token-sub">Key: {log.rollback_token}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="audit-target-col">
+                            <strong>{log.finding_id}</strong>
+                            <span>{log.security_group_id || log.instance_id || log.resource_id}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="audit-desc-col">
+                            <span className="audit-type-tag">{log.remediation_type}</span>
+                            <p>{log.details}</p>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`mode-pill ${log.mode}`}>
+                            {log.mode === "live_aws" ? "Live AWS API" : "DevSecOps Sandbox"}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-pill ${log.status.toLowerCase()}`}>
+                            {log.status === "REMEDIATED" ? "✓ Remediated" : "↺ Rolled Back"}
+                          </span>
+                        </td>
+                        <td>
+                          {log.status === "REMEDIATED" ? (
+                            <button
+                              className="btn-audit-rollback"
+                              disabled={rollingBackFindingId === log.finding_id}
+                              onClick={() => handleRollback(log.finding_id, log.rollback_token)}
+                            >
+                              {rollingBackFindingId === log.finding_id ? "Reversing..." : "↺ Rollback Rule"}
+                            </button>
+                          ) : (
+                            <span className="text-muted">Reversed ({new Date(log.rolled_back_at || log.timestamp).toLocaleTimeString()})</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

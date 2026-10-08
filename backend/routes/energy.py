@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from services.energy_service import get_energy
+from services.energy_service import get_energy, simulate_architecture_savings, INSTANCE_CATALOG
 
 
 router = APIRouter(
@@ -61,3 +61,50 @@ def aws_energy(
             status_code=503,
             detail="Unable to calculate AWS energy efficiency."
         )
+
+
+# ============================================================
+# "WHAT-IF" ARCHITECTURE DIGITAL TWIN SIMULATOR ENDPOINTS
+# ============================================================
+
+class SimulationRequest(BaseModel):
+    current_instance_type: Optional[str] = "t3.small"
+    target_instance_type: Optional[str] = "t4g.small"
+    instance_count: Optional[int] = 1
+    pricing_model: Optional[str] = "on-demand"
+    schedule_hours_per_day: Optional[int] = 24
+    region: Optional[str] = "ap-south-1"
+
+
+@router.post("/simulator/calculate")
+def simulate_architecture_endpoint(payload: SimulationRequest):
+    """
+    Simulates FinOps cost savings and GreenOps environmental impact
+    for migrating compute architecture (e.g. x86 to Graviton ARM)
+    and applying automated scheduling.
+    """
+    try:
+        return simulate_architecture_savings(
+            current_instance_type=payload.current_instance_type or "t3.small",
+            target_instance_type=payload.target_instance_type or "t4g.small",
+            instance_count=payload.instance_count or 1,
+            pricing_model=payload.pricing_model or "on-demand",
+            schedule_hours_per_day=payload.schedule_hours_per_day or 24,
+            region=payload.region or "ap-south-1"
+        )
+    except Exception as exc:
+        print("SIMULATION ERROR:", str(exc))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Simulation error: {str(exc)}"
+        )
+
+
+@router.get("/simulator/catalog")
+def get_simulator_catalog():
+    """
+    Returns supported instance types and specifications for simulation.
+    """
+    return {
+        "catalog": INSTANCE_CATALOG
+    }

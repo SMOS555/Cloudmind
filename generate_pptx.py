@@ -107,10 +107,17 @@ def create_presentation():
     p2.space_before = Pt(12)
 
     p3 = tf1.add_paragraph()
-    p3.text = "Technologies: React 18 • FastAPI • AWS Boto3 SDK • Amazon CloudWatch • AWS STS"
-    p3.font.size = Pt(13)
-    p3.font.color.rgb = PRIMARY_ACCENT
-    p3.space_before = Pt(28)
+    p3.text = "Presented by: Safwaan Mohamed S  |  Reg No: 25BCE1188"
+    p3.font.size = Pt(16)
+    p3.font.bold = True
+    p3.font.color.rgb = GREEN_ACCENT
+    p3.space_before = Pt(22)
+
+    p4 = tf1.add_paragraph()
+    p4.text = "Technologies: React 18 • FastAPI • AWS Boto3 SDK • Amazon CloudWatch • AWS STS"
+    p4.font.size = Pt(13)
+    p4.font.color.rgb = PRIMARY_ACCENT
+    p4.space_before = Pt(10)
 
     # -------------------------------------------------------------
     # SLIDE 2: Executive Summary
@@ -249,17 +256,16 @@ def create_presentation():
     s7 = prs.slides.add_slide(blank_layout)
     add_header(s7, "Core Feature", "Automated Cloud Security & Remediation Scanner")
     add_card(s7, Inches(0.8), Inches(1.8), Inches(5.6), Inches(5.0),
-             "Auditing Capabilities",
+             "Security Posture & Findings",
              ["Zero-Trust Ingress Audit: Scans all security group rules for 0.0.0.0/0 on sensitive ports (22 SSH, 3389 RDP).",
               "Storage Volume Audit: Inspects all attached EBS volumes for AES-256 server-side encryption.",
               "Instance Metadata Service: Enforces IMDSv2 to prevent SSRF vulnerabilities.",
-              "Compliance Score (0-100): Weighted calculation based on AWS Well-Architected Framework security pillar."], AMBER_ACCENT)
-    add_card(s7, Inches(6.9), Inches(1.8), Inches(5.6), Inches(5.0),
-             "Actionable Remediation",
-             ["Instant CLI Scripts: Generates copy-paste AWS CLI commands for immediate execution in AWS CloudShell.",
-              "Example: aws ec2 revoke-security-group-ingress --group-id <sg-id> --protocol tcp --port 22 --cidr 0.0.0.0/0.",
-              "Risk Categorization: Highlights Critical, High, Medium, and Passed items with visual badges.",
-              "Non-Destructive Scanning: All audit operations run strictly in read-only mode."], GREEN_ACCENT)
+              "Instant CLI Scripts: Generates copy-paste AWS CLI commands (e.g. revoke-security-group-ingress).",
+              "Compliance Score (0-100): Weighted calculation based on AWS Well-Architected Framework."], AMBER_ACCENT)
+    
+    sec_img = os.path.join(os.getcwd(), "docs", "screenshots", "security_center.png")
+    if os.path.exists(sec_img):
+        s7.shapes.add_picture(sec_img, Inches(6.7), Inches(1.8), width=Inches(5.8))
 
     # -------------------------------------------------------------
     # SLIDE 8: Energy Intelligence & Green Computing
@@ -271,13 +277,12 @@ def create_presentation():
              ["SPECpower Benchmark Integration: Replaces crude static formulas with continuous server power curves.",
               "Base Idle Load: Models 25-40% baseline server power draw when compute is idle.",
               "Optimal Sweet Spot: Scales continuously up to 95% efficiency between 60-75% CPU load.",
-              "Thermal Saturation Penalty: Incorporates cooling and thermal degradation curves beyond 85% CPU."], GREEN_ACCENT)
-    add_card(s8, Inches(6.9), Inches(1.8), Inches(5.6), Inches(5.0),
-             "Operator Telemetry Features",
-             ["Dual-Metric Switch: Toggle between continuous Efficiency Score (0-100) and raw CloudWatch CPU %.",
-              "Environmental Impact Metrics: Tracks energy consumed (kWh) and carbon emitted (kg CO2e).",
-              "Granular Timeframes: Inspect 24 hours, 48 hours, 72 hours, or 7-day historical trends.",
-              "Hover Tooltips: Precision tooltips displaying both efficiency score and CPU % for every single hour."], PRIMARY_ACCENT)
+              "Dual-Metric Switch: Toggle between continuous Efficiency Score (0-100) and raw CloudWatch CPU %.",
+              "Environmental Impact: Tracks real-time kWh consumed and estimated kg CO2e emissions."], GREEN_ACCENT)
+    
+    eng_img = os.path.join(os.getcwd(), "docs", "screenshots", "energy_overview.png")
+    if os.path.exists(eng_img):
+        s8.shapes.add_picture(eng_img, Inches(6.7), Inches(1.8), width=Inches(5.8))
 
     # -------------------------------------------------------------
     # SLIDE 9: Implementation Screenshot Showcase
@@ -286,7 +291,7 @@ def create_presentation():
     add_header(s9, "Live Demonstration", "Implementation Screenshot: Energy & Telemetry Intelligence")
     
     # Check if screenshot file exists
-    screenshot_path = os.path.join(os.getcwd(), "docs", "screenshots", "energy_efficiency_trend.png")
+    screenshot_path = os.path.join(os.getcwd(), "docs", "screenshots", "energy_trend.png")
     if os.path.exists(screenshot_path):
         s9.shapes.add_picture(screenshot_path, Inches(0.8), Inches(1.8), width=Inches(7.2))
         add_card(s9, Inches(8.3), Inches(1.8), Inches(4.2), Inches(5.0),
@@ -324,18 +329,12 @@ def create_presentation():
     # -------------------------------------------------------------
     s11 = prs.slides.add_slide(blank_layout)
     add_header(s11, "Autonomous Operations", "Intelligent Load Balancing & Conversational AI")
-    add_card(s11, Inches(0.8), Inches(1.8), Inches(5.6), Inches(5.0),
-             "Dynamic Workload Balancer",
-             ["Cluster Workload Variance: Calculates standard deviation of compute pressure across instances.",
-              "Hotspot Detection: Flags instances exceeding safe CPU thresholds.",
-              "Traffic Rebalancing: Formulates intelligent routing suggestions to equalize node load.",
-              "Auto-Scaling Triggers: Detects when cluster capacity requires scale-out or scale-in."], PRIMARY_ACCENT)
-    add_card(s11, Inches(6.9), Inches(1.8), Inches(5.6), Inches(5.0),
-             "Conversational AI Assistant",
-             ["Natural Language Interface: Ask complex infrastructure questions in conversational English.",
-              "Automated Summarization: Explains security vulnerabilities and compliance scores in plain text.",
-              "Guidance on Demand: Recommends instance downsizing, spot pricing, and security remediations.",
-              "Zero Latency: Responsive chat interface directly connected to FastAPI intelligence."], GREEN_ACCENT)
+    lb_img = os.path.join(os.getcwd(), "docs", "screenshots", "load_balancing.png")
+    ai_img = os.path.join(os.getcwd(), "docs", "screenshots", "ai_cloud_agent.png")
+    if os.path.exists(lb_img):
+        s11.shapes.add_picture(lb_img, Inches(0.8), Inches(1.8), width=Inches(5.7))
+    if os.path.exists(ai_img):
+        s11.shapes.add_picture(ai_img, Inches(6.8), Inches(1.8), width=Inches(5.7))
 
     # -------------------------------------------------------------
     # SLIDE 12: Testing, Verification & Performance
@@ -412,10 +411,17 @@ def create_presentation():
     pe2.space_before = Pt(12)
 
     pe3 = tfe.add_paragraph()
-    pe3.text = "GitHub Repository: https://github.com/SMOS555/Cloudmind"
-    pe3.font.size = Pt(14)
-    pe3.font.color.rgb = PRIMARY_ACCENT
-    pe3.space_before = Pt(28)
+    pe3.text = "Safwaan Mohamed S  |  Reg No: 25BCE1188"
+    pe3.font.size = Pt(16)
+    pe3.font.bold = True
+    pe3.font.color.rgb = GREEN_ACCENT
+    pe3.space_before = Pt(20)
+
+    pe4 = tfe.add_paragraph()
+    pe4.text = "GitHub Repository: https://github.com/SMOS555/Cloudmind"
+    pe4.font.size = Pt(14)
+    pe4.font.color.rgb = PRIMARY_ACCENT
+    pe4.space_before = Pt(8)
 
     output_path = os.path.join(os.getcwd(), "CloudMind_AI_Project_Presentation.pptx")
     prs.save(output_path)

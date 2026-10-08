@@ -1197,3 +1197,133 @@ def get_energy(
         "carbon_intensity_assumption":
             DEFAULT_CARBON_INTENSITY,
     }
+
+
+# ============================================================
+# "WHAT-IF" DIGITAL TWIN ARCHITECTURE SIMULATOR (FINOPS + GREENOPS)
+# ============================================================
+
+INSTANCE_CATALOG = {
+    # x86 Instances
+    "t2.nano": {"vcpu": 1, "memory_gb": 0.5, "hourly_rate": 0.0058, "power_w": 15, "arch": "x86_64", "family": "t2"},
+    "t2.micro": {"vcpu": 1, "memory_gb": 1.0, "hourly_rate": 0.0116, "power_w": 25, "arch": "x86_64", "family": "t2"},
+    "t2.small": {"vcpu": 1, "memory_gb": 2.0, "hourly_rate": 0.0230, "power_w": 25, "arch": "x86_64", "family": "t2"},
+    "t3.nano": {"vcpu": 2, "memory_gb": 0.5, "hourly_rate": 0.0052, "power_w": 15, "arch": "x86_64", "family": "t3"},
+    "t3.micro": {"vcpu": 2, "memory_gb": 1.0, "hourly_rate": 0.0104, "power_w": 20, "arch": "x86_64", "family": "t3"},
+    "t3.small": {"vcpu": 2, "memory_gb": 2.0, "hourly_rate": 0.0208, "power_w": 20, "arch": "x86_64", "family": "t3"},
+    "t3.medium": {"vcpu": 2, "memory_gb": 4.0, "hourly_rate": 0.0416, "power_w": 25, "arch": "x86_64", "family": "t3"},
+    "t3.large": {"vcpu": 2, "memory_gb": 8.0, "hourly_rate": 0.0832, "power_w": 35, "arch": "x86_64", "family": "t3"},
+    "m5.large": {"vcpu": 2, "memory_gb": 8.0, "hourly_rate": 0.0960, "power_w": 45, "arch": "x86_64", "family": "m5"},
+    "c5.large": {"vcpu": 2, "memory_gb": 4.0, "hourly_rate": 0.0850, "power_w": 40, "arch": "x86_64", "family": "c5"},
+
+    # AWS Graviton ARM64 Instances (Green & High Performance)
+    "t4g.nano": {"vcpu": 2, "memory_gb": 0.5, "hourly_rate": 0.0042, "power_w": 9, "arch": "arm64", "family": "t4g"},
+    "t4g.micro": {"vcpu": 2, "memory_gb": 1.0, "hourly_rate": 0.0084, "power_w": 12, "arch": "arm64", "family": "t4g"},
+    "t4g.small": {"vcpu": 2, "memory_gb": 2.0, "hourly_rate": 0.0168, "power_w": 14, "arch": "arm64", "family": "t4g"},
+    "t4g.medium": {"vcpu": 2, "memory_gb": 4.0, "hourly_rate": 0.0336, "power_w": 18, "arch": "arm64", "family": "t4g"},
+    "t4g.large": {"vcpu": 2, "memory_gb": 8.0, "hourly_rate": 0.0672, "power_w": 22, "arch": "arm64", "family": "t4g"},
+    "m6g.large": {"vcpu": 2, "memory_gb": 8.0, "hourly_rate": 0.0770, "power_w": 28, "arch": "arm64", "family": "m6g"},
+    "c7g.large": {"vcpu": 2, "memory_gb": 4.0, "hourly_rate": 0.0725, "power_w": 24, "arch": "arm64", "family": "c7g"}
+}
+
+PRICING_DISCOUNTS = {
+    "on-demand": 1.00,
+    "reserved-1yr": 0.62,
+    "reserved-3yr": 0.45,
+    "spot": 0.32
+}
+
+
+def simulate_architecture_savings(
+    current_instance_type: str = "t3.small",
+    target_instance_type: str = "t4g.small",
+    instance_count: int = 1,
+    pricing_model: str = "on-demand",
+    schedule_hours_per_day: int = 24,
+    region: str = "ap-south-1"
+):
+    """
+    Computes comparative FinOps financial savings and GreenOps environmental impact
+    for migrating workloads across compute architectures, purchasing commitments,
+    and automated off-peak scheduling.
+    """
+    curr_meta = INSTANCE_CATALOG.get(current_instance_type.lower(), {
+        "vcpu": 2, "memory_gb": 2.0, "hourly_rate": 0.0208, "power_w": 20, "arch": "x86_64", "family": "custom"
+    })
+    target_meta = INSTANCE_CATALOG.get(target_instance_type.lower(), {
+        "vcpu": 2, "memory_gb": 2.0, "hourly_rate": 0.0168, "power_w": 14, "arch": "arm64", "family": "custom"
+    })
+
+    hours_per_month = 730
+    schedule_ratio = max(4, min(24, schedule_hours_per_day)) / 24.0
+    discount = PRICING_DISCOUNTS.get(pricing_model.lower(), 1.0)
+    count = max(1, min(100, instance_count))
+
+    curr_monthly_cost = curr_meta["hourly_rate"] * count * hours_per_month
+    curr_monthly_energy_kwh = (curr_meta["power_w"] * count * hours_per_month) / 1000.0
+    curr_monthly_carbon_kg = curr_monthly_energy_kwh * DEFAULT_CARBON_INTENSITY
+
+    target_hourly_effective = target_meta["hourly_rate"] * discount
+    target_monthly_cost = target_hourly_effective * count * (hours_per_month * schedule_ratio)
+    target_monthly_energy_kwh = (target_meta["power_w"] * count * (hours_per_month * schedule_ratio)) / 1000.0
+    target_monthly_carbon_kg = target_monthly_energy_kwh * DEFAULT_CARBON_INTENSITY
+
+    monthly_cost_saved = max(0.0, curr_monthly_cost - target_monthly_cost)
+    cost_reduction_percent = round((monthly_cost_saved / curr_monthly_cost) * 100, 1) if curr_monthly_cost > 0 else 0
+
+    monthly_energy_saved = max(0.0, curr_monthly_energy_kwh - target_monthly_energy_kwh)
+    energy_reduction_percent = round((monthly_energy_saved / curr_monthly_energy_kwh) * 100, 1) if curr_monthly_energy_kwh > 0 else 0
+
+    monthly_carbon_saved = max(0.0, curr_monthly_carbon_kg - target_monthly_carbon_kg)
+    annual_carbon_saved_kg = monthly_carbon_saved * 12.0
+    trees_equivalent = round(annual_carbon_saved_kg / 21.77, 1)
+
+    is_graviton_switch = (curr_meta.get("arch") == "x86_64" and target_meta.get("arch") == "arm64")
+    perf_boost_label = "+20% to +40% Price-Performance Boost" if is_graviton_switch else "Standard Architecture"
+
+    return {
+        "inputs": {
+            "current_instance_type": current_instance_type,
+            "target_instance_type": target_instance_type,
+            "instance_count": count,
+            "pricing_model": pricing_model,
+            "schedule_hours_per_day": schedule_hours_per_day,
+            "region": region
+        },
+        "catalog": INSTANCE_CATALOG,
+        "baseline": {
+            "instance_type": current_instance_type,
+            "arch": curr_meta.get("arch"),
+            "vcpu": curr_meta.get("vcpu"),
+            "memory_gb": curr_meta.get("memory_gb"),
+            "monthly_cost_usd": round(curr_monthly_cost, 2),
+            "monthly_energy_kwh": round(curr_monthly_energy_kwh, 2),
+            "monthly_carbon_kg": round(curr_monthly_carbon_kg, 2)
+        },
+        "simulated": {
+            "instance_type": target_instance_type,
+            "arch": target_meta.get("arch"),
+            "vcpu": target_meta.get("vcpu"),
+            "memory_gb": target_meta.get("memory_gb"),
+            "monthly_cost_usd": round(target_monthly_cost, 2),
+            "monthly_energy_kwh": round(target_monthly_energy_kwh, 2),
+            "monthly_carbon_kg": round(target_monthly_carbon_kg, 2)
+        },
+        "savings": {
+            "monthly_cost_usd": round(monthly_cost_saved, 2),
+            "annual_cost_usd": round(monthly_cost_saved * 12.0, 2),
+            "cost_reduction_percent": cost_reduction_percent,
+            "monthly_energy_kwh": round(monthly_energy_saved, 2),
+            "energy_reduction_percent": energy_reduction_percent,
+            "monthly_carbon_kg": round(monthly_carbon_saved, 2),
+            "annual_carbon_kg": round(annual_carbon_saved_kg, 2),
+            "trees_equivalent_per_year": trees_equivalent,
+            "performance_gain": perf_boost_label
+        },
+        "recommendation_narrative": (
+            f"Migrating {count}x {current_instance_type} to {target_instance_type} ({target_meta.get('arch', 'arm64').upper()}) "
+            f"with {pricing_model.capitalize()} purchasing and {schedule_hours_per_day}h/day active schedule saves ${round(monthly_cost_saved, 2)}/mo "
+            f"({cost_reduction_percent}% cost reduction) and avoids {round(annual_carbon_saved_kg, 1)} kg CO2e/yr "
+            f"({trees_equivalent} trees equivalent)."
+        )
+    }

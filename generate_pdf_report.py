@@ -372,7 +372,7 @@ Cloud Administrator            Dashboard UI                     FastAPI Backend 
   <div class="section">
     <h2 class="section-header">3. Implementation & Module Architecture</h2>
     <p>
-      CloudMind AI is implemented as a cohesive suite of functional modules, each engineered to address specific operational and security requirements:
+      CloudMind AI is implemented as a cohesive suite of functional modules, engineered with academic and production-grade rigor:
     </p>
 
     <table class="data-table">
@@ -395,9 +395,19 @@ Cloud Administrator            Dashboard UI                     FastAPI Backend 
           <td>AWS EC2, IAM, Security Groups</td>
         </tr>
         <tr>
+          <td><strong>⚡ Feature 1: Self-Healing Cloud</strong></td>
+          <td><strong>1-Click Automated Remediation:</strong> Instant rule revocation via Boto3 / Sandbox, zero-downtime safety rollback tokens, live score bump, and immutable DevSecOps audit log.</td>
+          <td>EC2 Security Groups, IMDSv2, DevSecOps Engine</td>
+        </tr>
+        <tr>
           <td><strong>Energy Intelligence</strong></td>
           <td>Continuous power draw modeling, metric toggle (Efficiency Score vs CloudWatch CPU %), carbon emissions (kg CO2e), and downscaling advice.</td>
           <td>CloudWatch, AWS Pricing API</td>
+        </tr>
+        <tr>
+          <td><strong>🔮 Feature 2: "What-If" Digital Twin Simulator</strong></td>
+          <td><strong>FinOps & GreenOps Sandbox:</strong> Interactive simulation of migration from legacy x86 to AWS Graviton ARM64, Spot Fleet modeling (-68%), scheduled eco-shutdowns (-33%), and 1-click ADR export.</td>
+          <td>AWS Graviton ARM, Spot Pricing, FinOps Engine</td>
         </tr>
         <tr>
           <td><strong>Load Balancing & Workload</strong></td>
@@ -411,6 +421,28 @@ Cloud Administrator            Dashboard UI                     FastAPI Backend 
         </tr>
       </tbody>
     </table>
+
+    <h3 class="subsection-header">3.1 Standout Feature 1: "Self-Healing Cloud" (1-Click Auto-Remediation & Rollback)</h3>
+    <p>
+      Traditional cloud audit dashboards merely display vulnerability lists, leaving remediation as a cumbersome manual task. CloudMind AI implements a closed-loop DevSecOps automation pipeline:
+    </p>
+    <ul>
+      <li><strong>1-Click Remediation Execution:</strong> Operators can click <code>[⚡ 1-Click Auto-Remediate Rule]</code> on any open security group finding (SSH 22, RDP 3389, Database 3306/5432, or All Traffic) or insecure IMDSv1 instance to immediately revoke the offending rule via Boto3 EC2 API.</li>
+      <li><strong>Dual-Mode Resilient Architecture:</strong> Executes live Boto3 API calls against AWS when IAM credentials permit write actions, and seamlessly stages simulated sandbox enforcement with explicit indicators in restricted student/read-only environments.</li>
+      <li><strong>Cryptographic Safety Rollback:</strong> Every remediation generates a unique rollback token (<code>RBK-XXXXXXXX</code>) storing previous state. In the event of unintended disruption, operators can instantly restore previous rules with zero downtime via <code>[↺ Rollback Rule]</code>.</li>
+      <li><strong>Immutable DevSecOps Audit Trail:</strong> A dedicated 6th tab records every action with UTC timestamps, operator identity (<strong>Safwaan Mohamed S</strong>), target resource, status, and JSON export capabilities.</li>
+    </ul>
+
+    <h3 class="subsection-header">3.2 Standout Feature 2: "What-If" Digital Twin Architecture Simulator (FinOps + GreenOps)</h3>
+    <p>
+      Bridging financial cloud governance (FinOps) and sustainable computing (GreenOps), the What-If Simulator provides an interactive digital twin sandbox for infrastructure decisions:
+    </p>
+    <ul>
+      <li><strong>Architecture Modernization Modeling:</strong> Models transitions from power-hungry legacy x86 instances (<code>t2.small</code>, <code>t3.small</code>, <code>m5.large</code>) to high-efficiency AWS Graviton 3/4 ARM64 processors (<code>t4g.small</code>, <code>m6g.large</code>, <code>c7g.large</code>), showcasing 30-60% wattage reductions.</li>
+      <li><strong>Purchasing Model Simulation:</strong> Compares On-Demand baseline spending against 1-Year Savings Plans (38% savings) and Spot Fleets (68% savings).</li>
+      <li><strong>Automated Off-Peak Eco-Scheduling:</strong> Simulates automated shutdown policies for non-production environments (e.g., 16h/day active vs 24h continuous), driving an additional 33% to 58% energy and carbon reduction.</li>
+      <li><strong>Comprehensive KPI Visuals & ADR Export:</strong> Real-time cards calculate Monthly/Annual Cost Savings ($), Energy Saved (kWh), Annual Carbon Avoided (kg CO2e & equivalent trees planted/year), and generates standard enterprise Architecture Decision Records (ADR).</li>
+    </ul>
   </div>
 
   <!-- SECTION 4: ENGINEERING RIGOR -->

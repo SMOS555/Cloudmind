@@ -10,6 +10,135 @@ function Energy({ awsCredentials }) {
   const [hours, setHours] = useState(24);
   const [chartMetric, setChartMetric] = useState("efficiency");
 
+  // "What-If" Digital Twin Architecture Simulator State
+  const [simCurrentType, setSimCurrentType] = useState("t3.small");
+  const [simTargetType, setSimTargetType] = useState("t4g.small");
+  const [simInstanceCount, setSimInstanceCount] = useState(2);
+  const [simPricingModel, setSimPricingModel] = useState("spot");
+  const [simScheduleHours, setSimScheduleHours] = useState(16);
+  const [simResult, setSimResult] = useState(null);
+  const [adrCopied, setAdrCopied] = useState(false);
+
+  const calculateSimulation = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/energy/simulator/calculate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_instance_type: simCurrentType,
+          target_instance_type: simTargetType,
+          instance_count: simInstanceCount,
+          pricing_model: simPricingModel,
+          schedule_hours_per_day: simScheduleHours,
+          region: data?.region || awsCredentials?.region || "ap-south-1",
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setSimResult(d);
+        return;
+      }
+    } catch (e) {
+      console.warn("Simulator backend fetch error, calculating locally:", e);
+    }
+
+    // Local FinOps & GreenOps Simulation Engine Fallback
+    const catalog = {
+      "t2.micro": { hourly: 0.0116, watts: 25, arch: "x86_64" },
+      "t2.small": { hourly: 0.023, watts: 25, arch: "x86_64" },
+      "t3.nano": { hourly: 0.0052, watts: 15, arch: "x86_64" },
+      "t3.micro": { hourly: 0.0104, watts: 20, arch: "x86_64" },
+      "t3.small": { hourly: 0.0208, watts: 20, arch: "x86_64" },
+      "t3.medium": { hourly: 0.0416, watts: 25, arch: "x86_64" },
+      "t3.large": { hourly: 0.0832, watts: 35, arch: "x86_64" },
+      "m5.large": { hourly: 0.096, watts: 45, arch: "x86_64" },
+      "c5.large": { hourly: 0.085, watts: 40, arch: "x86_64" },
+      "t4g.nano": { hourly: 0.0042, watts: 9, arch: "arm64" },
+      "t4g.micro": { hourly: 0.0084, watts: 12, arch: "arm64" },
+      "t4g.small": { hourly: 0.0168, watts: 14, arch: "arm64" },
+      "t4g.medium": { hourly: 0.0336, watts: 18, arch: "arm64" },
+      "t4g.large": { hourly: 0.0672, watts: 22, arch: "arm64" },
+      "m6g.large": { hourly: 0.077, watts: 28, arch: "arm64" },
+      "c7g.large": { hourly: 0.0725, watts: 24, arch: "arm64" },
+    };
+    const cMeta = catalog[simCurrentType] || { hourly: 0.0208, watts: 20, arch: "x86_64" };
+    const tMeta = catalog[simTargetType] || { hourly: 0.0168, watts: 14, arch: "arm64" };
+    const discount = simPricingModel === "spot" ? 0.32 : simPricingModel === "reserved-1yr" ? 0.62 : 1.0;
+    const scheduleRatio = simScheduleHours / 24.0;
+    const count = Number(simInstanceCount) || 1;
+    const hpm = 730;
+
+    const currCost = cMeta.hourly * count * hpm;
+    const targetCost = tMeta.hourly * discount * count * (hpm * scheduleRatio);
+    const currKwh = (cMeta.watts * count * hpm) / 1000.0;
+    const targetKwh = (tMeta.watts * count * (hpm * scheduleRatio)) / 1000.0;
+    const currCo2 = currKwh * 0.70;
+    const targetCo2 = targetKwh * 0.70;
+
+    const savedCost = Math.max(0, currCost - targetCost);
+    const savedKwh = Math.max(0, currKwh - targetKwh);
+    const savedCo2 = Math.max(0, currCo2 - targetCo2);
+    const trees = (savedCo2 * 12) / 21.77;
+
+    setSimResult({
+      baseline: {
+        instance_type: simCurrentType,
+        monthly_cost_usd: Number(currCost.toFixed(2)),
+        monthly_energy_kwh: Number(currKwh.toFixed(2)),
+        monthly_carbon_kg: Number(currCo2.toFixed(2)),
+      },
+      simulated: {
+        instance_type: simTargetType,
+        monthly_cost_usd: Number(targetCost.toFixed(2)),
+        monthly_energy_kwh: Number(targetKwh.toFixed(2)),
+        monthly_carbon_kg: Number(targetCo2.toFixed(2)),
+      },
+      savings: {
+        monthly_cost_usd: Number(savedCost.toFixed(2)),
+        annual_cost_usd: Number((savedCost * 12).toFixed(2)),
+        cost_reduction_percent: Number(((savedCost / currCost) * 100).toFixed(1)),
+        monthly_energy_kwh: Number(savedKwh.toFixed(2)),
+        energy_reduction_percent: Number(((savedKwh / currKwh) * 100).toFixed(1)),
+        monthly_carbon_kg: Number(savedCo2.toFixed(2)),
+        annual_carbon_kg: Number((savedCo2 * 12).toFixed(2)),
+        trees_equivalent_per_year: Number(trees.toFixed(1)),
+        performance_gain: "+20% to +40% Price-Performance Boost",
+      },
+      recommendation_narrative: `Migrating ${count}x ${simCurrentType} to ${simTargetType} (ARM64 Graviton) with ${simPricingModel} purchasing and ${simScheduleHours}h/day active schedule saves $${savedCost.toFixed(2)}/mo (${((savedCost / currCost) * 100).toFixed(1)}% reduction) and avoids ${(savedCo2 * 12).toFixed(1)} kg CO2e/yr (${trees.toFixed(1)} trees equivalent).`,
+    });
+  };
+
+  useEffect(() => {
+    calculateSimulation();
+  }, [simCurrentType, simTargetType, simInstanceCount, simPricingModel, simScheduleHours]);
+
+  const handleCopyADR = () => {
+    if (!simResult) return;
+    const adrText = `# Architecture Decision Record (ADR): Cloud Workload Optimization
+**Author:** Safwaan Mohamed S (25BCE1188)
+**Date:** ${new Date().toLocaleDateString()}
+**Status:** Approved for Implementation
+
+## Context & Problem Statement
+Currently running ${simInstanceCount}x ${simCurrentType} EC2 instances in AWS ${data?.region || "ap-south-1"}. High idle energy consumption and On-Demand pricing present cost and sustainability inefficiencies.
+
+## Decision: Modernize to AWS Graviton ARM64 + Spot Fleet + Scheduled Shutdown
+- **Target Architecture:** ${simTargetType} (AWS Graviton ARM64)
+- **Purchasing Commitment:** ${simPricingModel.toUpperCase()}
+- **Scheduler Policy:** ${simScheduleHours} Hours/Day (Off-peak shutdown)
+
+## Financial (FinOps) & GreenOps Impact
+- **Monthly Cost Savings:** $${simResult.savings?.monthly_cost_usd} (-${simResult.savings?.cost_reduction_percent}%)
+- **Annual Cost Savings:** $${simResult.savings?.annual_cost_usd} / year
+- **Energy Reduction:** ${simResult.savings?.monthly_energy_kwh} kWh / month (-${simResult.savings?.energy_reduction_percent}%)
+- **Carbon Avoided:** ${simResult.savings?.annual_carbon_kg} kg CO2e / year (Equivalent to ${simResult.savings?.trees_equivalent_per_year} trees planted)
+- **Performance:** ${simResult.savings?.performance_gain}
+`;
+    navigator.clipboard.writeText(adrText);
+    setAdrCopied(true);
+    setTimeout(() => setAdrCopied(false), 3000);
+  };
+
   const loadEnergy = async () => {
     setLoading(true);
     setError("");
@@ -717,6 +846,258 @@ function Energy({ awsCredentials }) {
 
         )}
 
+      </section>
+
+      {/* =====================================================
+          "WHAT-IF" DIGITAL TWIN ARCHITECTURE SIMULATOR (FINOPS + GREENOPS)
+      ===================================================== */}
+      <section className="energy-simulator-section">
+        <div className="simulator-header-box">
+          <div className="simulator-header-text">
+            <span className="panel-eyebrow">DIGITAL TWIN ARCHITECTURE SANDBOX</span>
+            <h2>"What-If" FinOps & GreenOps Simulator</h2>
+            <p>
+              Simulate workload modernization from legacy x86 to AWS Graviton ARM64,
+              explore Spot Fleet purchasing, and evaluate automated off-peak eco-shutdown schedules.
+            </p>
+          </div>
+          <button className="btn-adr-export" onClick={handleCopyADR}>
+            {adrCopied ? "✓ ADR Copied to Clipboard!" : "📋 Export Architecture Decision Record (ADR)"}
+          </button>
+        </div>
+
+        <div className="simulator-grid">
+          {/* CONTROLS PANEL */}
+          <div className="sim-panel sim-controls-panel">
+            <h3 className="sim-panel-title">⚙️ Sandbox Simulation Parameters</h3>
+
+            <div className="sim-field-group">
+              <label>Current Instance Family (x86 Baseline)</label>
+              <select
+                value={simCurrentType}
+                onChange={(e) => setSimCurrentType(e.target.value)}
+              >
+                <option value="t2.micro">t2.micro (1 vCPU, 1 GB RAM, ~25W)</option>
+                <option value="t2.small">t2.small (1 vCPU, 2 GB RAM, ~25W)</option>
+                <option value="t3.nano">t3.nano (2 vCPU, 0.5 GB RAM, ~15W)</option>
+                <option value="t3.micro">t3.micro (2 vCPU, 1 GB RAM, ~20W)</option>
+                <option value="t3.small">t3.small (2 vCPU, 2 GB RAM, ~20W)</option>
+                <option value="t3.medium">t3.medium (2 vCPU, 4 GB RAM, ~25W)</option>
+                <option value="t3.large">t3.large (2 vCPU, 8 GB RAM, ~35W)</option>
+                <option value="m5.large">m5.large (2 vCPU, 8 GB RAM, ~45W)</option>
+                <option value="c5.large">c5.large (2 vCPU, 4 GB RAM, ~40W)</option>
+              </select>
+            </div>
+
+            <div className="sim-field-group">
+              <label>
+                Target Modernized Architecture (AWS Graviton ARM64)
+                <span className="badge-arm">Eco-Efficient</span>
+              </label>
+              <select
+                value={simTargetType}
+                onChange={(e) => setSimTargetType(e.target.value)}
+              >
+                <option value="t4g.nano">t4g.nano (2 vCPU, 0.5 GB RAM, ~9W) - 60% Power Drop</option>
+                <option value="t4g.micro">t4g.micro (2 vCPU, 1 GB RAM, ~12W) - 50% Power Drop</option>
+                <option value="t4g.small">t4g.small (2 vCPU, 2 GB RAM, ~14W) - 30% Power Drop</option>
+                <option value="t4g.medium">t4g.medium (2 vCPU, 4 GB RAM, ~18W) - 28% Power Drop</option>
+                <option value="t4g.large">t4g.large (2 vCPU, 8 GB RAM, ~22W) - 37% Power Drop</option>
+                <option value="m6g.large">m6g.large (2 vCPU, 8 GB RAM, ~28W) - 38% Power Drop</option>
+                <option value="c7g.large">c7g.large (2 vCPU, 4 GB RAM, ~24W) - Graviton 3 High-Perf</option>
+              </select>
+            </div>
+
+            <div className="sim-field-group">
+              <div className="slider-label-row">
+                <label>Workload Fleet Size</label>
+                <strong>{simInstanceCount} Instances</strong>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="25"
+                value={simInstanceCount}
+                onChange={(e) => setSimInstanceCount(Number(e.target.value))}
+                className="sim-slider"
+              />
+              <div className="slider-scale">
+                <span>1 VM</span>
+                <span>10 VMs</span>
+                <span>25 VMs</span>
+              </div>
+            </div>
+
+            <div className="sim-field-group">
+              <label>FinOps Purchasing Strategy</label>
+              <div className="sim-button-toggle">
+                <button
+                  type="button"
+                  className={simPricingModel === "on-demand" ? "active" : ""}
+                  onClick={() => setSimPricingModel("on-demand")}
+                >
+                  On-Demand (0%)
+                </button>
+                <button
+                  type="button"
+                  className={simPricingModel === "reserved-1yr" ? "active" : ""}
+                  onClick={() => setSimPricingModel("reserved-1yr")}
+                >
+                  1-Yr Savings Plan (-38%)
+                </button>
+                <button
+                  type="button"
+                  className={simPricingModel === "spot" ? "active" : ""}
+                  onClick={() => setSimPricingModel("spot")}
+                >
+                  Spot Fleet (-68%)
+                </button>
+              </div>
+            </div>
+
+            <div className="sim-field-group">
+              <label>GreenOps Eco-Schedule (Active Hours / Day)</label>
+              <div className="sim-button-toggle">
+                <button
+                  type="button"
+                  className={simScheduleHours === 24 ? "active" : ""}
+                  onClick={() => setSimScheduleHours(24)}
+                >
+                  24h (Always-On)
+                </button>
+                <button
+                  type="button"
+                  className={simScheduleHours === 16 ? "active" : ""}
+                  onClick={() => setSimScheduleHours(16)}
+                >
+                  16h (Dev/Stage -33%)
+                </button>
+                <button
+                  type="button"
+                  className={simScheduleHours === 10 ? "active" : ""}
+                  onClick={() => setSimScheduleHours(10)}
+                >
+                  10h (Business -58%)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* SIMULATION RESULTS PANEL */}
+          <div className="sim-panel sim-results-panel">
+            <h3 className="sim-panel-title">📊 Simulated FinOps & GreenOps Impact</h3>
+
+            <div className="sim-kpi-cards-grid">
+              <div className="sim-kpi-card cost">
+                <span className="sim-kpi-label">FINOPS MONTHLY SAVINGS</span>
+                <div className="sim-kpi-val">
+                  ${simResult?.savings?.monthly_cost_usd ?? "0.00"}
+                  <span className="sim-pct-tag">-{simResult?.savings?.cost_reduction_percent ?? 0}%</span>
+                </div>
+                <span className="sim-kpi-sub">
+                  ${simResult?.savings?.annual_cost_usd ?? "0.00"} projected annual savings
+                </span>
+              </div>
+
+              <div className="sim-kpi-card energy">
+                <span className="sim-kpi-label">ENERGY SAVED</span>
+                <div className="sim-kpi-val">
+                  {simResult?.savings?.monthly_energy_kwh ?? "0"} kWh
+                  <span className="sim-pct-tag">-{simResult?.savings?.energy_reduction_percent ?? 0}%</span>
+                </div>
+                <span className="sim-kpi-sub">
+                  Lower electrical wattage profile
+                </span>
+              </div>
+
+              <div className="sim-kpi-card carbon">
+                <span className="sim-kpi-label">CARBON AVOIDED</span>
+                <div className="sim-kpi-val">
+                  {simResult?.savings?.annual_carbon_kg ?? "0"} kg
+                  <span className="sim-pct-sub">CO2e / year</span>
+                </div>
+                <span className="sim-kpi-sub">
+                  🌿 Equal to {simResult?.savings?.trees_equivalent_per_year ?? 0} trees planted/yr
+                </span>
+              </div>
+
+              <div className="sim-kpi-card perf">
+                <span className="sim-kpi-label">COMPUTE EFFICIENCY</span>
+                <div className="sim-kpi-val green-text">
+                  +25% to +40%
+                </div>
+                <span className="sim-kpi-sub">
+                  AWS Graviton Neoverse Price-Performance
+                </span>
+              </div>
+            </div>
+
+            {/* COMPARISON BARS */}
+            <div className="sim-comparison-section">
+              <h4>Direct Architecture Comparison</h4>
+
+              <div className="comp-bar-item">
+                <div className="comp-bar-labels">
+                  <span>Monthly Spend (USD)</span>
+                  <div>
+                    <span className="baseline-text">${simResult?.baseline?.monthly_cost_usd}</span>
+                    {" → "}
+                    <span className="target-text">${simResult?.simulated?.monthly_cost_usd}</span>
+                  </div>
+                </div>
+                <div className="comp-bar-track">
+                  <div
+                    className="comp-bar-fill baseline"
+                    style={{ width: "100%" }}
+                  >
+                    <span>Baseline (x86)</span>
+                  </div>
+                  <div
+                    className="comp-bar-fill simulated"
+                    style={{
+                      width: `${simResult?.baseline?.monthly_cost_usd ? Math.min(100, Math.max(10, (simResult.simulated.monthly_cost_usd / simResult.baseline.monthly_cost_usd) * 100)) : 30}%`
+                    }}
+                  >
+                    <span>Simulated (Graviton + Schedule)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="comp-bar-item">
+                <div className="comp-bar-labels">
+                  <span>Monthly Energy Draw (kWh)</span>
+                  <div>
+                    <span className="baseline-text">{simResult?.baseline?.monthly_energy_kwh} kWh</span>
+                    {" → "}
+                    <span className="target-text">{simResult?.simulated?.monthly_energy_kwh} kWh</span>
+                  </div>
+                </div>
+                <div className="comp-bar-track">
+                  <div
+                    className="comp-bar-fill baseline energy-bg"
+                    style={{ width: "100%" }}
+                  >
+                    <span>Baseline ({simCurrentType})</span>
+                  </div>
+                  <div
+                    className="comp-bar-fill simulated energy-target-bg"
+                    style={{
+                      width: `${simResult?.baseline?.monthly_energy_kwh ? Math.min(100, Math.max(10, (simResult.simulated.monthly_energy_kwh / simResult.baseline.monthly_energy_kwh) * 100)) : 30}%`
+                    }}
+                  >
+                    <span>Optimized ({simTargetType})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RECOMMENDATION NARRATIVE */}
+            <div className="sim-narrative-box">
+              <div className="narrative-badge">✦ AI CLOUD ARCHITECT RECOMMENDATION</div>
+              <p>{simResult?.recommendation_narrative}</p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* =====================================================
