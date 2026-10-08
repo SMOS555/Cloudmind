@@ -1034,58 +1034,109 @@ Currently running ${simInstanceCount}x ${simCurrentType} EC2 instances in AWS ${
 
             {/* COMPARISON BARS */}
             <div className="sim-comparison-section">
-              <h4>Direct Architecture Comparison</h4>
+              <div className="sim-comp-header">
+                <h4>Direct Architecture Comparison</h4>
+                <span className="sim-comp-sublabel">Side-by-side legacy baseline vs optimized modernized fleet</span>
+              </div>
 
-              <div className="comp-bar-item">
-                <div className="comp-bar-labels">
-                  <span>Monthly Spend (USD)</span>
-                  <div>
-                    <span className="baseline-text">${simResult?.baseline?.monthly_cost_usd}</span>
-                    {" → "}
-                    <span className="target-text">${simResult?.simulated?.monthly_cost_usd}</span>
+              {/* 1. Monthly Financial Spend Comparison */}
+              <div className="comp-card">
+                <div className="comp-card-header">
+                  <div className="comp-card-title">
+                    <span className="comp-card-icon">💵</span>
+                    <span className="comp-card-name">Monthly Cloud Compute Spend</span>
+                  </div>
+                  <div className="comp-delta-badge">
+                    <span className="baseline-val">${simResult?.baseline?.monthly_cost_usd}</span>
+                    <span className="delta-arrow">→</span>
+                    <span className="target-val">${simResult?.simulated?.monthly_cost_usd}</span>
+                    <span className="delta-pill green">
+                      -{simResult?.savings?.cost_reduction_percent ?? 0}% Saved
+                    </span>
                   </div>
                 </div>
-                <div className="comp-bar-track">
-                  <div
-                    className="comp-bar-fill baseline"
-                    style={{ width: "100%" }}
-                  >
-                    <span>Baseline (x86)</span>
+
+                {/* Baseline Spend Row */}
+                <div className="comp-metric-row">
+                  <div className="comp-row-info">
+                    <span className="comp-row-name">
+                      <span className="comp-dot red"></span>
+                      Baseline Architecture ({simCurrentType} x86 • On-Demand • 24/7)
+                    </span>
+                    <span className="comp-row-number red">${simResult?.baseline?.monthly_cost_usd} / mo</span>
                   </div>
-                  <div
-                    className="comp-bar-fill simulated"
-                    style={{
-                      width: `${simResult?.baseline?.monthly_cost_usd ? Math.min(100, Math.max(10, (simResult.simulated.monthly_cost_usd / simResult.baseline.monthly_cost_usd) * 100)) : 30}%`
-                    }}
-                  >
-                    <span>Simulated (Graviton + Schedule)</span>
+                  <div className="comp-progress-bg">
+                    <div className="comp-progress-bar baseline-bar" style={{ width: "100%" }} />
+                  </div>
+                </div>
+
+                {/* Modernized Spend Row */}
+                <div className="comp-metric-row">
+                  <div className="comp-row-info">
+                    <span className="comp-row-name">
+                      <span className="comp-dot green"></span>
+                      Modernized Architecture ({simTargetType} ARM64 • {simPricingModel === "spot" ? "Spot Fleet (-68%)" : simPricingModel === "reserved-1yr" ? "1-Yr Savings Plan (-38%)" : "On-Demand"} • {simScheduleHours}h/day)
+                    </span>
+                    <span className="comp-row-number green">${simResult?.simulated?.monthly_cost_usd} / mo</span>
+                  </div>
+                  <div className="comp-progress-bg">
+                    <div
+                      className="comp-progress-bar modern-bar"
+                      style={{
+                        width: `${simResult?.baseline?.monthly_cost_usd ? Math.max(6, Math.min(100, (simResult.simulated.monthly_cost_usd / simResult.baseline.monthly_cost_usd) * 100)) : 25}%`
+                      }}
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="comp-bar-item">
-                <div className="comp-bar-labels">
-                  <span>Monthly Energy Draw (kWh)</span>
-                  <div>
-                    <span className="baseline-text">{simResult?.baseline?.monthly_energy_kwh} kWh</span>
-                    {" → "}
-                    <span className="target-text">{simResult?.simulated?.monthly_energy_kwh} kWh</span>
+              {/* 2. Monthly Energy Consumption Comparison */}
+              <div className="comp-card">
+                <div className="comp-card-header">
+                  <div className="comp-card-title">
+                    <span className="comp-card-icon">⚡</span>
+                    <span className="comp-card-name">Monthly Energy Consumption (kWh)</span>
+                  </div>
+                  <div className="comp-delta-badge">
+                    <span className="baseline-val">{simResult?.baseline?.monthly_energy_kwh} kWh</span>
+                    <span className="delta-arrow">→</span>
+                    <span className="target-val">{simResult?.simulated?.monthly_energy_kwh} kWh</span>
+                    <span className="delta-pill cyan">
+                      -{simResult?.savings?.energy_reduction_percent ?? 0}% Cut
+                    </span>
                   </div>
                 </div>
-                <div className="comp-bar-track">
-                  <div
-                    className="comp-bar-fill baseline energy-bg"
-                    style={{ width: "100%" }}
-                  >
-                    <span>Baseline ({simCurrentType})</span>
+
+                {/* Baseline Energy Row */}
+                <div className="comp-metric-row">
+                  <div className="comp-row-info">
+                    <span className="comp-row-name">
+                      <span className="comp-dot amber"></span>
+                      Baseline Energy Draw ({simCurrentType} ~{simResult?.catalog?.[simCurrentType]?.power_w ?? 20}W profile)
+                    </span>
+                    <span className="comp-row-number amber">{simResult?.baseline?.monthly_energy_kwh} kWh</span>
                   </div>
-                  <div
-                    className="comp-bar-fill simulated energy-target-bg"
-                    style={{
-                      width: `${simResult?.baseline?.monthly_energy_kwh ? Math.min(100, Math.max(10, (simResult.simulated.monthly_energy_kwh / simResult.baseline.monthly_energy_kwh) * 100)) : 30}%`
-                    }}
-                  >
-                    <span>Optimized ({simTargetType})</span>
+                  <div className="comp-progress-bg">
+                    <div className="comp-progress-bar baseline-energy-bar" style={{ width: "100%" }} />
+                  </div>
+                </div>
+
+                {/* Modernized Energy Row */}
+                <div className="comp-metric-row">
+                  <div className="comp-row-info">
+                    <span className="comp-row-name">
+                      <span className="comp-dot cyan"></span>
+                      Modernized Energy Draw ({simTargetType} Graviton ~{simResult?.catalog?.[simTargetType]?.power_w ?? 14}W profile)
+                    </span>
+                    <span className="comp-row-number cyan">{simResult?.simulated?.monthly_energy_kwh} kWh</span>
+                  </div>
+                  <div className="comp-progress-bg">
+                    <div
+                      className="comp-progress-bar modern-energy-bar"
+                      style={{
+                        width: `${simResult?.baseline?.monthly_energy_kwh ? Math.max(6, Math.min(100, (simResult.simulated.monthly_energy_kwh / simResult.baseline.monthly_energy_kwh) * 100)) : 25}%`
+                      }}
+                    />
                   </div>
                 </div>
               </div>
