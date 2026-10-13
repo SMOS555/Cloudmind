@@ -7,7 +7,9 @@ from services.security_service import (
     validate_aws_credentials,
     remediate_security_finding,
     rollback_security_remediation,
-    get_remediation_audit_log
+    get_remediation_audit_log,
+    scan_aws_account_identity,
+    remediate_account_security
 )
 
 
@@ -218,3 +220,84 @@ def aws_security_audit_log_endpoint():
     Returns the real-time DevSecOps audit log of all self-healing actions and rollbacks.
     """
     return get_remediation_audit_log()
+
+
+# ============================================================
+# AWS ACCOUNT & ACCESS KEY AUDIT ENDPOINTS
+# ============================================================
+
+class AccountAuditRequest(BaseModel):
+    region: Optional[str] = "ap-south-1"
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
+    role_arn: Optional[str] = None
+    external_id: Optional[str] = None
+
+
+class AccountRemediateRequest(BaseModel):
+    action_type: str
+    target_key_id: Optional[str] = None
+    target_user: Optional[str] = None
+    region: Optional[str] = "ap-south-1"
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
+    actor: Optional[str] = "DevSecOps Account Hardener"
+
+
+@router.post("/aws/account-audit")
+def aws_account_audit_endpoint(payload: AccountAuditRequest):
+    """
+    Audits AWS Account identity: access key age, root MFA, and CloudTrail access events.
+    """
+    try:
+        return scan_aws_account_identity(
+            region=payload.region or "ap-south-1",
+            aws_access_key_id=payload.aws_access_key_id,
+            aws_secret_access_key=payload.aws_secret_access_key,
+            aws_session_token=payload.aws_session_token,
+            role_arn=payload.role_arn,
+            external_id=payload.external_id
+        )
+    except Exception as exc:
+        print("ACCOUNT AUDIT ERROR:", str(exc))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to complete account audit: {str(exc)}"
+        )
+
+
+@router.get("/aws/account-audit")
+def aws_account_audit_get(region: Optional[str] = Query("ap-south-1")):
+    """
+    GET endpoint for rapid account identity auditing.
+    """
+    try:
+        return scan_aws_account_identity(region=region)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/aws/account-remediate")
+def aws_account_remediate_endpoint(payload: AccountRemediateRequest):
+    """
+    1-Click account remediation: deactivates stale keys, enforces MFA, or blocks anomalous IPs.
+    """
+    try:
+        return remediate_account_security(
+            action_type=payload.action_type,
+            target_key_id=payload.target_key_id,
+            target_user=payload.target_user,
+            region=payload.region or "ap-south-1",
+            aws_access_key_id=payload.aws_access_key_id,
+            aws_secret_access_key=payload.aws_secret_access_key,
+            aws_session_token=payload.aws_session_token,
+            actor=payload.actor or "DevSecOps Account Hardener"
+        )
+    except Exception as exc:
+        print("ACCOUNT REMEDIATION ERROR:", str(exc))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Account remediation failed: {str(exc)}"
+        )

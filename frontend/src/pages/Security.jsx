@@ -58,6 +58,99 @@ function Security({ awsCredentials, updateAwsCredentials }) {
   const [auditLog, setAuditLog] = useState([]);
   const [remediationToast, setRemediationToast] = useState(null);
 
+  // Account & Access Key Security State
+  const [accountAuditData, setAccountAuditData] = useState(null);
+  const [loadingAccountAudit, setLoadingAccountAudit] = useState(false);
+  const [deactivatingKeyId, setDeactivatingKeyId] = useState(null);
+  const [enforcingMfaUser, setEnforcingMfaUser] = useState(null);
+  const [accountActionToast, setAccountActionToast] = useState(null);
+
+  const loadAccountAudit = async () => {
+    setLoadingAccountAudit(true);
+    try {
+      const activeCreds = awsCredentials;
+      const scanRegion = activeCreds?.region || region || "ap-south-1";
+      const isServer = activeCreds ? activeCreds.useServerDefaults : useServerDefaults;
+      const key = (activeCreds?.accessKeyId || accessKeyId || "").trim();
+      const secret = (activeCreds?.secretAccessKey || secretAccessKey || "").trim();
+      const token = (activeCreds?.sessionToken || sessionToken || "").trim();
+
+      const payload = { region: scanRegion };
+      if (!isServer && key && secret) {
+        payload.aws_access_key_id = key;
+        payload.aws_secret_access_key = secret;
+        if (token) payload.aws_session_token = token;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/security/aws/account-audit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setAccountAuditData(d);
+      }
+    } catch (err) {
+      console.warn("Account audit error:", err);
+    } finally {
+      setLoadingAccountAudit(false);
+    }
+  };
+
+  const handleDeactivateKey = async (keyId, username) => {
+    setDeactivatingKeyId(keyId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/aws/account-remediate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action_type: "DEACTIVATE_KEY",
+          target_key_id: keyId,
+          target_user: username,
+          region: region || "ap-south-1",
+          actor: "Safwaan Mohamed S (25BCE1188)"
+        })
+      });
+      if (res.ok) {
+        setAccountActionToast(`✓ Stale key ${keyId} deactivated! Status updated in IAM registry.`);
+        setTimeout(() => setAccountActionToast(null), 4000);
+        loadAccountAudit();
+        loadAuditLog();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeactivatingKeyId(null);
+    }
+  };
+
+  const handleEnforceMFA = async (username) => {
+    setEnforcingMfaUser(username);
+    try {
+      const res = await fetch(`${API_BASE_URL}/security/aws/account-remediate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action_type: "ENFORCE_USER_MFA",
+          target_user: username,
+          region: region || "ap-south-1",
+          actor: "Safwaan Mohamed S (25BCE1188)"
+        })
+      });
+      if (res.ok) {
+        setAccountActionToast(`🔒 MFA policy enforced on user ${username}.`);
+        setTimeout(() => setAccountActionToast(null), 4000);
+        loadAccountAudit();
+        loadAuditLog();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnforcingMfaUser(null);
+    }
+  };
+
   // ============================================================
   // SYNC WITH GLOBAL AWS CREDENTIALS (FROM DASHBOARD OR STORAGE)
   // ============================================================
@@ -69,6 +162,7 @@ function Security({ awsCredentials, updateAwsCredentials }) {
       setRegion(awsCredentials.region || "ap-south-1");
       setUseServerDefaults(awsCredentials.useServerDefaults ?? true);
       runSecurityScan(awsCredentials.region, awsCredentials);
+      loadAccountAudit();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -850,6 +944,17 @@ function Security({ awsCredentials, updateAwsCredentials }) {
         >
           <span className="tab-icon">🛡️</span>
           <span>Security Groups & Ports ({securityGroups.length})</span>
+        </button>
+
+        <button
+          className={`sec-tab-btn ${activeTab === "account_audit" ? "active" : ""}`}
+          onClick={() => {
+            setActiveTab("account_audit");
+            loadAccountAudit();
+          }}
+        >
+          <span className="tab-icon">👤</span>
+          <span>Account & Access Audit {accountAuditData?.access_keys_count ? `(${accountAuditData.access_keys_count})` : ""}</span>
         </button>
 
         <button
@@ -1889,6 +1994,296 @@ function Security({ awsCredentials, updateAwsCredentials }) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* =======================================================
+          TAB: AWS ACCOUNT & ACCESS KEY SECURITY SCANNER
+      ======================================================= */}
+      {activeTab === "account_audit" && (
+        <div className="sec-tab-content">
+          {accountActionToast && (
+            <div className="account-action-toast">
+              <span>{accountActionToast}</span>
+            </div>
+          )}
+
+          {loadingAccountAudit && !accountAuditData ? (
+            <div className="sec-panel loading-state">
+              <div className="sec-spinner"></div>
+              <h3>Auditing AWS Account Identity & CloudTrail...</h3>
+              <p>Inspecting IAM access keys, root posture, and recent API access logs.</p>
+            </div>
+          ) : accountAuditData ? (
+            <>
+              {/* TOP ACCOUNT SECURITY OVERVIEW */}
+              <div className="account-overview-banner">
+                <div className="overview-meta">
+                  <div className="eyebrow-tag">AWS ACCOUNT IDENTITY AUDITOR</div>
+                  <h2>Account Security & Access Radar</h2>
+                  <div className="account-ids-row">
+                    <span>
+                      AWS Account: <strong>{accountAuditData.account_id}</strong>
+                    </span>
+                    <span>
+                      Principal ARN: <code>{accountAuditData.caller_arn}</code>
+                    </span>
+                    <span>
+                      Region: <strong>{accountAuditData.region}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="account-score-box">
+                  <div className="score-number-col">
+                    <span className="big-score">{accountAuditData.account_security_score}</span>
+                    <span className="score-denom">/100</span>
+                  </div>
+                  <div className="score-badge-col">
+                    <span className={`threat-badge ${accountAuditData.threat_level?.toLowerCase()}`}>
+                      {accountAuditData.threat_level === "Elevated" ? "⚠️ Elevated Threat" : "🛡️ Secure Posture"}
+                    </span>
+                    <small>Identity & Key Health</small>
+                  </div>
+                </div>
+              </div>
+
+              {/* THREE STAT CARDS */}
+              <div className="account-stats-grid">
+                <div className="account-stat-card">
+                  <div className="stat-top">
+                    <span className="stat-icon">👑</span>
+                    <span className={`pill-badge ${accountAuditData.root_posture?.root_mfa_enabled ? "pass" : "fail"}`}>
+                      {accountAuditData.root_posture?.root_mfa_enabled ? "MFA Active" : "No MFA"}
+                    </span>
+                  </div>
+                  <div className="stat-title">Root Account Security</div>
+                  <p className="stat-desc">{accountAuditData.root_posture?.compliance_notes}</p>
+                </div>
+
+                <div className="account-stat-card">
+                  <div className="stat-top">
+                    <span className="stat-icon">🔑</span>
+                    <span className={`pill-badge ${accountAuditData.stale_access_keys_count > 0 ? "warning" : "pass"}`}>
+                      {accountAuditData.stale_access_keys_count} Stale Keys
+                    </span>
+                  </div>
+                  <div className="stat-title">IAM Access Keys Audit</div>
+                  <p className="stat-desc">
+                    {accountAuditData.access_keys_count} active keys monitored. Keys older than 90 days violate CIS AWS 1.14.
+                  </p>
+                </div>
+
+                <div className="account-stat-card">
+                  <div className="stat-top">
+                    <span className="stat-icon">🚨</span>
+                    <span className={`pill-badge ${accountAuditData.suspicious_events_count > 0 ? "danger" : "pass"}`}>
+                      {accountAuditData.suspicious_events_count} Anomaly Alerts
+                    </span>
+                  </div>
+                  <div className="stat-title">CloudTrail Threat Radar</div>
+                  <p className="stat-desc">
+                    Monitors unauthorized API calls, AccessDenied spikes, and foreign access IPs.
+                  </p>
+                </div>
+              </div>
+
+              {/* SECTION 1: WHO IS ACCESSING YOUR AWS ACCOUNT? */}
+              <div className="sec-panel">
+                <div className="panel-title-row">
+                  <div>
+                    <h3>🔍 Who is Accessing Your AWS Account? (CloudTrail Access Log)</h3>
+                    <p>Recent management events, console logins, and API calls with source IP and geographic tracking.</p>
+                  </div>
+                  <button className="btn-secondary sm" onClick={loadAccountAudit} disabled={loadingAccountAudit}>
+                    {loadingAccountAudit ? "Refreshing..." : "↻ Refresh Feed"}
+                  </button>
+                </div>
+
+                {accountAuditData.suspicious_access_events?.length > 0 && (
+                  <div className="anomalous-access-alert">
+                    <span className="alert-icon">🚨</span>
+                    <div>
+                      <strong>Anomalous Access Detected:</strong>
+                      <p>
+                        Unauthorized access attempt recorded from foreign IP:{" "}
+                        <code>{accountAuditData.suspicious_access_events[0]?.source_ip}</code> targeting action{" "}
+                        <code>{accountAuditData.suspicious_access_events[0]?.event_name}</code> (ErrorCode:{" "}
+                        {accountAuditData.suspicious_access_events[0]?.error_code}).
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="cloudtrail-table-wrapper">
+                  <table className="cloudtrail-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp (UTC)</th>
+                        <th>User / Principal</th>
+                        <th>Event Name</th>
+                        <th>Source IP & Location</th>
+                        <th>User Agent / Client</th>
+                        <th>Region</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accountAuditData.recent_access_events?.map((ev, i) => (
+                        <tr key={i} className={`ct-row ${ev.is_suspicious ? "suspicious" : ""}`}>
+                          <td>
+                            <span className="ct-time">{new Date(ev.event_time).toLocaleTimeString()}</span>
+                            <small className="ct-date">{new Date(ev.event_time).toLocaleDateString()}</small>
+                          </td>
+                          <td>
+                            <strong>{ev.username}</strong>
+                          </td>
+                          <td>
+                            <code className="ct-event-name">{ev.event_name}</code>
+                          </td>
+                          <td>
+                            <span className="ct-ip">{ev.source_ip}</span>
+                          </td>
+                          <td>
+                            <span className="ct-agent" title={ev.user_agent}>
+                              {ev.user_agent}
+                            </span>
+                          </td>
+                          <td>{ev.region}</td>
+                          <td>
+                            <span className={`ct-status-badge ${ev.status === "AUTHORIZED" ? "ok" : "fail"}`}>
+                              {ev.status === "AUTHORIZED" ? "✓ Authorized" : `! ${ev.error_code || "Failed"}`}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* SECTION 2: ACCESS KEYS AUDIT */}
+              <div className="sec-panel">
+                <div className="panel-title-row">
+                  <div>
+                    <h3>🔑 Access Key Exposure & Lifecycle Audit</h3>
+                    <p>Audit active access keys, identify stale keys exceeding CIS 90-day benchmark, and apply 1-click deactivation.</p>
+                  </div>
+                </div>
+
+                <div className="access-keys-grid">
+                  {accountAuditData.access_keys?.map((k, i) => (
+                    <div key={i} className={`access-key-card ${k.is_stale ? "stale-key" : ""}`}>
+                      <div className="key-card-header">
+                        <div className="key-id-box">
+                          <span className="key-icon">🔑</span>
+                          <code>{k.masked_key_id}</code>
+                        </div>
+                        <span className={`key-status-pill ${k.status.toLowerCase()}`}>
+                          {k.status}
+                        </span>
+                      </div>
+
+                      <div className="key-meta-grid">
+                        <div className="k-meta-item">
+                          <span>IAM User:</span>
+                          <strong>{k.username}</strong>
+                        </div>
+                        <div className="k-meta-item">
+                          <span>Key Age:</span>
+                          <strong className={k.age_days > 90 ? "text-danger" : ""}>
+                            {k.age_days} Days Old {k.age_days > 90 && "(⚠️ Stale)"}
+                          </strong>
+                        </div>
+                        <div className="k-meta-item">
+                          <span>Last Used:</span>
+                          <strong>{k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : "Never Used"}</strong>
+                        </div>
+                        <div className="k-meta-item">
+                          <span>Last Service:</span>
+                          <code>{k.last_used_service}</code>
+                        </div>
+                        <div className="k-meta-item full-width">
+                          <span>Last Source IP:</span>
+                          <span className="source-ip-tag">{k.last_used_ip}</span>
+                        </div>
+                      </div>
+
+                      <div className="key-card-footer">
+                        <span className="cis-rule-pill">{k.cis_benchmark}</span>
+                        {k.status === "Active" ? (
+                          <button
+                            className="btn-deactivate-key"
+                            disabled={deactivatingKeyId === k.key_id}
+                            onClick={() => handleDeactivateKey(k.key_id, k.username)}
+                          >
+                            {deactivatingKeyId === k.key_id ? "Deactivating..." : "⚡ 1-Click Deactivate Key"}
+                          </button>
+                        ) : (
+                          <span className="text-muted">Key Inactive</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION 3: IAM USERS & MFA POLICY */}
+              <div className="sec-panel">
+                <div className="panel-title-row">
+                  <div>
+                    <h3>👥 IAM Users & MFA Enforcement</h3>
+                    <p>Ensure all IAM users interactive console logins are protected with Multi-Factor Authentication (CIS AWS 1.16).</p>
+                  </div>
+                </div>
+
+                <div className="iam-users-table-wrapper">
+                  <table className="iam-users-table">
+                    <thead>
+                      <tr>
+                        <th>IAM Username</th>
+                        <th>User ARN</th>
+                        <th>Created Date</th>
+                        <th>MFA Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accountAuditData.iam_users?.map((u, i) => (
+                        <tr key={i}>
+                          <td>
+                            <strong>{u.username}</strong>
+                          </td>
+                          <td>
+                            <code>{u.arn}</code>
+                          </td>
+                          <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <span className={`mfa-badge ${u.mfa_enabled ? "enabled" : "missing"}`}>
+                              {u.mfa_enabled ? "✓ MFA Enforced" : "⚠️ No MFA Enabled"}
+                            </span>
+                          </td>
+                          <td>
+                            {!u.mfa_enabled ? (
+                              <button
+                                className="btn-enforce-mfa"
+                                disabled={enforcingMfaUser === u.username}
+                                onClick={() => handleEnforceMFA(u.username)}
+                              >
+                                {enforcingMfaUser === u.username ? "Enforcing..." : "🔒 Enforce MFA Policy"}
+                              </button>
+                            ) : (
+                              <span className="text-muted">Compliant</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       )}
     </div>
