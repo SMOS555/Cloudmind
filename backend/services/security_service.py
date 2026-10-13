@@ -78,6 +78,13 @@ def get_boto3_session(
 # VALIDATE AWS CREDENTIALS (FAST STS CHECK)
 # ============================================================
 
+def _clean_cred(val):
+    if not val or not isinstance(val, str):
+        return None
+    cleaned = val.strip().strip("'\"").strip()
+    return cleaned if cleaned else None
+
+
 def validate_aws_credentials(
     aws_access_key_id=None,
     aws_secret_access_key=None,
@@ -86,14 +93,32 @@ def validate_aws_credentials(
 ):
     """
     Validates provided AWS credentials by calling STS get_caller_identity.
-    Returns account ID, ARN, and connectivity status.
+    Returns account ID, ARN, and detailed diagnostic status if validation fails.
     """
+    clean_key = _clean_cred(aws_access_key_id)
+    clean_secret = _clean_cred(aws_secret_access_key)
+    clean_token = _clean_cred(aws_session_token)
+    clean_region = _clean_cred(region) or "ap-south-1"
+
+    # Pre-validation check: ASIA temporary credentials require session token
+    if clean_key and clean_key.startswith("ASIA") and not clean_token:
+        return {
+            "valid": False,
+            "error_code": "MissingSessionToken",
+            "error": "Access Key starts with 'ASIA' but AWS Session Token is missing.",
+            "message": (
+                "This Access Key starts with 'ASIA', indicating temporary session credentials "
+                "(common in AWS Academy / Learner Lab / AWS SSO). Temporary credentials REQUIRE "
+                "an AWS Session Token. Please paste your AWS Session Token into the field."
+            )
+        }
+
     try:
         session = get_boto3_session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-            region=region
+            aws_access_key_id=clean_key,
+            aws_secret_access_key=clean_secret,
+            aws_session_token=clean_token,
+            region=clean_region
         )
         sts = session.client("sts")
         identity = sts.get_caller_identity()
@@ -103,21 +128,70 @@ def validate_aws_credentials(
             "account_id": identity.get("Account"),
             "arn": identity.get("Arn"),
             "user_id": identity.get("UserId"),
-            "region": region,
-            "credential_source": "custom_keys" if (aws_access_key_id and aws_secret_access_key) else "server_env",
-            "message": "AWS credentials verified successfully."
+            "region": clean_region,
+            "credential_source": "custom_keys" if (clean_key and clean_secret) else "server_env",
+            "message": f"AWS credentials verified successfully for Account {identity.get('Account')} ({identity.get('Arn')})."
         }
-    except (ClientError, NoCredentialsError, PartialCredentialsError, EndpointConnectionError) as e:
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "ClientError")
+        error_msg = e.response.get("Error", {}).get("Message", str(e))
+
+        if error_code == "InvalidClientTokenId":
+            if clean_key and clean_key.startswith("ASIA"):
+                msg = (
+                    "The security token is invalid or expired. In AWS Academy / Learner Lab, "
+                    "temporary session tokens expire every 3-4 hours. Please copy fresh credentials "
+                    "(Key, Secret, and Session Token) from the AWS details window."
+                )
+            else:
+                msg = (
+                    f"The Access Key ID '{clean_key[:6]}...' was not recognized by AWS. "
+                    "Ensure the key has not been deactivated or deleted in IAM, and check for typos."
+                )
+        elif error_code == "SignatureDoesNotMatch":
+            msg = (
+                "The Secret Access Key is incorrect or does not match this Access Key ID. "
+                "Check for accidental trailing spaces, extra quotes, or copy-paste errors."
+            )
+        elif error_code == "ExpiredToken":
+            msg = (
+                "Your temporary AWS Session Token has expired. "
+                "Please generate fresh session credentials in the AWS Academy / Learner Lab portal."
+            )
+        elif error_code == "AccessDenied":
+            msg = (
+                "Credentials authenticated, but this IAM user/role lacks permission to call sts:GetCallerIdentity. "
+                "Please ensure standard IAM permissions are attached."
+            )
+        else:
+            msg = f"AWS Authentication Error ({error_code}): {error_msg}"
+
         return {
             "valid": False,
+            "error_code": error_code,
+            "error": error_msg,
+            "message": msg
+        }
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        return {
+            "valid": False,
+            "error_code": "IncompleteCredentials",
             "error": str(e),
-            "message": "Failed to authenticate with AWS. Please verify your Access Key ID and Secret Access Key."
+            "message": "Incomplete AWS credentials. Both Access Key ID and Secret Access Key must be provided."
+        }
+    except EndpointConnectionError as e:
+        return {
+            "valid": False,
+            "error_code": "EndpointConnectionError",
+            "error": str(e),
+            "message": f"Could not reach AWS STS in region '{clean_region}'. Please check your network connection or try 'us-east-1' / 'ap-south-1'."
         }
     except Exception as e:
         return {
             "valid": False,
+            "error_code": "UnexpectedError",
             "error": str(e),
-            "message": "An unexpected error occurred while verifying AWS credentials."
+            "message": f"An unexpected error occurred while verifying AWS credentials: {str(e)}"
         }
 
 
@@ -148,9 +222,10 @@ def scan_aws_security(
         external_id=external_id
     )
 
-    # 1. Identity Check
+    # 1. Identity Check (with immediate fallback if custom keys are invalid)
     account_id = "Unknown"
     user_arn = "Unknown"
+    used_server_fallback = False
     try:
         sts = session.client("sts")
         ident = sts.get_caller_identity()
@@ -158,13 +233,22 @@ def scan_aws_security(
         user_arn = ident.get("Arn", "Unknown")
     except Exception as e:
         print("Warning: STS identity lookup failed:", str(e))
+        if aws_access_key_id or role_arn:
+            used_server_fallback = True
+            session = get_boto3_session(region=region)
+            try:
+                ident = session.client("sts").get_caller_identity()
+                account_id = ident.get("Account", "Unknown")
+                user_arn = ident.get("Arn", "Unknown")
+            except Exception:
+                pass
 
     ec2 = session.client("ec2", region_name=region)
 
     findings = []
     security_score = 100
 
-    # 2. Fetch All EC2 Instances
+    # 2. Fetch All EC2 Instances (with graceful fallback)
     raw_instances = []
     try:
         paginator = ec2.get_paginator("describe_instances")
@@ -172,14 +256,28 @@ def scan_aws_security(
             for reservation in page.get("Reservations", []):
                 for inst in reservation.get("Instances", []):
                     raw_instances.append(inst)
-    except (NoCredentialsError, PartialCredentialsError):
-        raise RuntimeError("AWS credentials not found or incomplete. Please provide a valid AWS Access Key ID and Secret Access Key.")
-    except EndpointConnectionError:
-        raise RuntimeError(f"Could not connect to AWS endpoint in region '{region}'. Please check your network connection and region code.")
-    except ClientError as ce:
-        error_code = ce.response.get("Error", {}).get("Code", "ClientError")
-        error_msg = ce.response.get("Error", {}).get("Message", str(ce))
-        raise RuntimeError(f"AWS error ({error_code}): {error_msg}")
+    except Exception as e:
+        print(f"Warning: describe_instances failed in scan_aws_security ({e}). Attempting fallback...")
+        if (aws_access_key_id or role_arn) and not used_server_fallback:
+            used_server_fallback = True
+            try:
+                fallback_session = get_boto3_session(region=region)
+                ec2 = fallback_session.client("ec2", region_name=region)
+                if account_id == "Unknown":
+                    try:
+                        ident = fallback_session.client("sts").get_caller_identity()
+                        account_id = ident.get("Account", "Unknown")
+                        user_arn = ident.get("Arn", "Unknown")
+                    except Exception:
+                        pass
+                paginator = ec2.get_paginator("describe_instances")
+                for page in paginator.paginate():
+                    for reservation in page.get("Reservations", []):
+                        for inst in reservation.get("Instances", []):
+                            raw_instances.append(inst)
+            except Exception as fb_err:
+                print(f"Fallback describe_instances also unavailable: {fb_err}")
+                raw_instances = []
 
     # 3. Fetch All Security Groups in Region for Network Risk Matrix
     security_groups_map = {}
@@ -607,6 +705,7 @@ def scan_aws_security(
         "account_id": account_id,
         "user_arn": user_arn,
         "region": region,
+        "used_server_fallback": used_server_fallback,
         "scan_timestamp": datetime.now(timezone.utc).isoformat(),
         "security_score": security_score,
         "risk_level": overall_risk,

@@ -26,6 +26,11 @@ from services.analytics_service import (
     get_advanced_analytics
 )
 
+from services.rag_service import (
+    retrieve_cloud_knowledge,
+    get_rag_knowledge_catalog
+)
+
 # ============================================================
 # LOAD ENVIRONMENT VARIABLES
 # ============================================================
@@ -118,8 +123,13 @@ app.add_middleware(
 # ============================================================
 
 class ChatRequest(BaseModel):
-
     message: str
+    use_rag: Optional[bool] = True
+    use_cag: Optional[bool] = True
+    region: Optional[str] = "ap-south-1"
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
 
 
 # ============================================================
@@ -614,139 +624,98 @@ def analytics():
             )
         )
 # ============================================================
-# AI CHAT
+# HYBRID RAG + CAG AI CHAT
 # ============================================================
 
 @app.post("/api/chat")
 def chat(request: ChatRequest):
-
-    # --------------------------------------------------------
-    # VALIDATE MESSAGE
-    # --------------------------------------------------------
-
     if not request.message.strip():
-
         raise HTTPException(
-
             status_code=400,
-
             detail="Message cannot be empty."
-
         )
 
-
-    # --------------------------------------------------------
-    # CLOUDMIND AI SYSTEM PROMPT
-    # --------------------------------------------------------
-
-    system_prompt = """
-
-You are CloudMind AI, an expert cloud computing
-and cloud infrastructure assistant.
-
-You are part of an advanced AI-powered cloud
-management platform.
-
-Your expertise includes:
-
-- Cloud computing
-- AWS
-- Microsoft Azure
-- Google Cloud
-- Cloud architecture
-- Virtual machines
-- Containers
-- Kubernetes
-- Load balancing
-- Auto scaling
-- Cloud security
-- IAM
-- Encryption
-- Network security
-- Cloud cost optimization
-- Energy-efficient computing
-- Cloud monitoring
-- DevOps
-- Serverless computing
-- Databases
-- Cloud networking
-- Disaster recovery
-- High availability
-- Performance optimization
-- Cloud migration
-- Multi-cloud architecture
-- AI/ML infrastructure
-
-Answer the user's question clearly and accurately.
-
-If the question is technical:
-
-1. Explain the concept.
-2. Explain why it matters.
-3. Give a practical example.
-
-If the question involves choosing between cloud
-providers, compare relevant factors such as:
-
-- Cost
-- Performance
-- Security
-- Scalability
-- Reliability
-- Services
-- Workload suitability
-
-If the user asks about the CloudMind project,
-explain how the concept can be implemented
-in this project.
-
-Important:
-
-Do not pretend that simulated or estimated
-project data is real cloud infrastructure.
-
-If a CloudMind feature is not connected to a
-real cloud API yet, clearly say that it is
-not connected.
-
-Currently CloudMind has real AWS EC2 and
-CloudWatch monitoring.
-
-Azure and Google Cloud monitoring are planned
-but are not currently connected.
-
-AWS Cost Explorer is not currently connected.
-
-Memory and network monitoring are not currently
-connected.
-
-Security analysis is currently being developed.
-
-Energy efficiency values may be estimated from
-CPU utilization and should not be described as
-direct AWS energy telemetry.
-
-Keep answers useful for a college student
-building an advanced cloud management project.
-
-Use headings and bullet points when they improve
-clarity.
-
-Keep responses concise and well structured.
-
-Use Markdown formatting:
-
-- Use ## headings for major sections.
-- Use bullet points for lists.
-- Use numbered lists for procedures.
-- Use Markdown tables only when a comparison is useful.
-- Keep paragraphs short.
-- Avoid unnecessary repetition.
-
+    # 1. CAG TIER: Live Cloud Telemetry Context Ingestion
+    cag_telemetry = None
+    cag_prompt_block = ""
+    if request.use_cag:
+        try:
+            telemetry_data = get_ec2_cpu_metrics(
+                region=request.region or "ap-south-1",
+                history_hours=7,
+                aws_access_key_id=request.aws_access_key_id,
+                aws_secret_access_key=request.aws_secret_access_key,
+                aws_session_token=request.aws_session_token
+            )
+            cag_telemetry = {
+                "region": telemetry_data.get("region", request.region or "ap-south-1"),
+                "total_instances": telemetry_data.get("total_instances", 0),
+                "running_instances": telemetry_data.get("running_instances", 0),
+                "cpu_usage": telemetry_data.get("cpu_usage"),
+                "instances": [
+                    {
+                        "id": inst.get("id"),
+                        "type": inst.get("type"),
+                        "state": inst.get("state"),
+                        "public_ip": inst.get("public_ip"),
+                    }
+                    for inst in telemetry_data.get("instances", [])[:5]
+                ]
+            }
+            cag_prompt_block = f"""
+### [CAG LIVE CLOUD TELEMETRY CACHE]
+The user's live infrastructure state is currently active:
+- Inspected AWS Region: {cag_telemetry['region']}
+- Total EC2 Instances: {cag_telemetry['total_instances']} (Running: {cag_telemetry['running_instances']})
+- CPU Utilization: {cag_telemetry['cpu_usage'] if cag_telemetry['cpu_usage'] is not None else 'No active CloudWatch data'}%
+- Sample Instances in Fleet: {[i['id'] + ' (' + str(i['type']) + ', ' + str(i['state']) + ')' for i in cag_telemetry['instances']]}
+Use this live infrastructure state when advising on the user's specific servers or fleet.
 """
+        except Exception as cag_err:
+            print("Notice: CAG telemetry cache skipped:", str(cag_err))
+            cag_telemetry = {"status": "Fallback simulation", "region": request.region or "ap-south-1"}
 
+    # 2. RAG TIER: Authoritative Cloud Knowledge Semantic Retrieval
+    rag_sources = []
+    rag_prompt_block = ""
+    if request.use_rag:
+        try:
+            rag_sources = retrieve_cloud_knowledge(request.message, top_k=3)
+            if rag_sources:
+                rag_passages = []
+                for s in rag_sources:
+                    rag_passages.append(
+                        f"--- [REFERENCE: {s['standard']} ({s['id']}) - Relevance: {s['relevance_percent']}%] ---\n"
+                        f"{s['content']}"
+                    )
+                rag_prompt_block = f"""
+### [RAG AUTHORITATIVE KNOWLEDGE BASE RETRIEVALS]
+The following authoritative compliance standards, FinOps guides, and remediation runbooks were retrieved for this query:
+{chr(10).join(rag_passages)}
 
-    # --------------------------------------------------------
+GROUNDING RULES:
+1. Ground your technical guidance in the retrieved reference documents above.
+2. Explicitly cite the standard in your response using markdown bold, e.g. **[{rag_sources[0]['standard']} ({rag_sources[0]['id']})]**.
+3. Include the exact copyable AWS CLI commands provided in the runbook where relevant.
+"""
+        except Exception as rag_err:
+            print("Notice: RAG retrieval error:", str(rag_err))
+
+    # 3. CONSTRUCT AUGMENTED SYSTEM PROMPT
+    base_prompt = """You are CloudMind AI, an expert enterprise Cloud Governance, DevSecOps, FinOps, and GreenOps Assistant.
+You represent the CloudMind AI Platform created by Safwaan Mohamed S (25BCE1188).
+Your mission is to provide accurate, grounded, authoritative cloud engineering advice with zero hallucinations.
+
+Style & Formatting:
+- Use ## headings for major sections.
+- Use bullet points for clear readability.
+- When referencing standards or rules, cite the official CIS Benchmark or FinOps specification.
+- Provide copyable AWS CLI code blocks for remediation procedures.
+- Keep answers professional, precise, and practical for cloud engineers.
+"""
+    augmented_system_prompt = base_prompt + "\n" + cag_prompt_block + "\n" + rag_prompt_block
+
+    # 4. EXECUTE MODEL INFERENCE VIA GROQ
     global client
     if client is None:
         key = os.getenv("GROQ_API_KEY")
@@ -764,74 +733,63 @@ Use Markdown formatting:
             )
 
     try:
-
         completion = client.chat.completions.create(
-
             model="openai/gpt-oss-120b",
-
             messages=[
-
                 {
-                    "role":
-                        "system",
-
-                    "content":
-                        system_prompt
-
+                    "role": "system",
+                    "content": augmented_system_prompt
                 },
-
                 {
-                    "role":
-                        "user",
-
-                    "content":
-                        request.message
-
+                    "role": "user",
+                    "content": request.message
                 }
-
             ],
-
-            temperature=0.4,
-
-            max_completion_tokens=800
-
+            temperature=0.3,
+            max_completion_tokens=850
         )
 
-
-        answer = (
-            completion
-            .choices[0]
-            .message
-            .content
-        )
-
+        answer = completion.choices[0].message.content
 
         return {
-
-            "success":
-                True,
-
-            "answer":
-                answer
-
+            "success": True,
+            "answer": answer,
+            "rag_enabled": bool(request.use_rag),
+            "cag_enabled": bool(request.use_cag),
+            "rag_sources": rag_sources,
+            "cag_telemetry": cag_telemetry,
         }
 
-
     except Exception as e:
-
-        print(
-            "AI ERROR:",
-            str(e)
-        )
-
-
+        print("AI ERROR:", str(e))
         raise HTTPException(
-
             status_code=500,
-
-            detail="AI service failed."
-
+            detail=f"AI service failed: {str(e)}"
         )
+
+
+# ============================================================
+# RAG KNOWLEDGE BASE CATALOG ENDPOINT
+# ============================================================
+
+@app.get("/api/rag/knowledge-base")
+def get_knowledge_base_endpoint():
+    """
+    Returns full catalog of indexed CIS benchmarks, FinOps frameworks,
+    and remediation runbooks for the UI Knowledge Base Inspector.
+    """
+    catalog = get_rag_knowledge_catalog()
+    return {
+        "success": True,
+        "total_documents": len(catalog),
+        "standards": [
+            "CIS AWS Foundations Benchmark v3.0",
+            "FinOps Foundation Framework",
+            "Green Software Foundation Standard v2.1",
+            "AWS Security Incident Response Guide"
+        ],
+        "catalog": catalog
+    }
 
 
 if __name__ == "__main__":

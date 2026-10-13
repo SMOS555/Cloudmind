@@ -10,6 +10,13 @@ DEFAULT_REGION = "ap-south-1"
 # AWS SESSION
 # ============================================================
 
+def _clean_cred(val):
+    if not val or not isinstance(val, str):
+        return None
+    cleaned = val.strip().strip("'\"").strip()
+    return cleaned if cleaned else None
+
+
 def get_aws_session(
     role_arn=None,
     external_id=None,
@@ -30,15 +37,20 @@ def get_aws_session(
     If no custom keys or role_arn are supplied, the backend's normal AWS credentials
     from environment variables or boto3 defaults are used.
     """
-    if aws_access_key_id and aws_secret_access_key:
+    clean_key = _clean_cred(aws_access_key_id)
+    clean_secret = _clean_cred(aws_secret_access_key)
+    clean_token = _clean_cred(aws_session_token)
+    clean_region = _clean_cred(region) or DEFAULT_REGION
+
+    if clean_key and clean_secret:
         kwargs = {
-            "aws_access_key_id": aws_access_key_id.strip(),
-            "aws_secret_access_key": aws_secret_access_key.strip(),
+            "aws_access_key_id": clean_key,
+            "aws_secret_access_key": clean_secret,
         }
-        if aws_session_token and aws_session_token.strip():
-            kwargs["aws_session_token"] = aws_session_token.strip()
-        if region and region.strip():
-            kwargs["region_name"] = region.strip()
+        if clean_token:
+            kwargs["aws_session_token"] = clean_token
+        if clean_region:
+            kwargs["region_name"] = clean_region
         return boto3.Session(**kwargs)
 
     if not role_arn:
@@ -143,79 +155,43 @@ def get_ec2_instances(
         region_name=region
     )
 
-    instances = []
-
-    paginator = ec2.get_paginator(
-        "describe_instances"
-    )
-
-    for page in paginator.paginate():
-
-        for reservation in page.get(
-            "Reservations",
-            []
-        ):
-
-            for instance in reservation.get(
-                "Instances",
-                []
-            ):
-
-                instances.append({
-
-                    "id":
-                        instance["InstanceId"],
-
-                    "type":
-                        instance.get(
-                            "InstanceType"
-                        ),
-
-                    "state":
-                        instance["State"]["Name"],
-
-                    "region":
-                        region,
-
-                    "private_ip":
-                        instance.get(
-                            "PrivateIpAddress"
-                        ),
-
-                    "public_ip":
-                        instance.get(
-                            "PublicIpAddress"
-                        ),
-
-                    "availability_zone":
-                        instance.get(
-                            "Placement",
-                            {}
-                        ).get(
-                            "AvailabilityZone"
-                        ),
-
-                    "launch_time":
-                        (
-                            instance.get(
-                                "LaunchTime"
-                            ).isoformat()
-                            if instance.get(
-                                "LaunchTime"
-                            )
+    def _extract_instances(ec2_client):
+        found = []
+        paginator = ec2_client.get_paginator("describe_instances")
+        for page in paginator.paginate():
+            for reservation in page.get("Reservations", []):
+                for instance in reservation.get("Instances", []):
+                    found.append({
+                        "id": instance["InstanceId"],
+                        "type": instance.get("InstanceType"),
+                        "state": instance["State"]["Name"],
+                        "region": region,
+                        "private_ip": instance.get("PrivateIpAddress"),
+                        "public_ip": instance.get("PublicIpAddress"),
+                        "availability_zone": instance.get("Placement", {}).get("AvailabilityZone"),
+                        "launch_time": (
+                            instance.get("LaunchTime").isoformat()
+                            if instance.get("LaunchTime")
                             else None
                         ),
+                        "vpc_id": instance.get("VpcId"),
+                        "subnet_id": instance.get("SubnetId"),
+                    })
+        return found
 
-                    "vpc_id":
-                        instance.get(
-                            "VpcId"
-                        ),
-
-                    "subnet_id":
-                        instance.get(
-                            "SubnetId"
-                        ),
-                })
+    instances = []
+    try:
+        instances = _extract_instances(ec2)
+    except Exception as e:
+        print(f"Warning: describe_instances failed in get_ec2_instances ({e}). Attempting fallback...")
+        if aws_access_key_id or role_arn:
+            try:
+                fallback_session = get_aws_session(region=region)
+                fallback_ec2 = fallback_session.client("ec2", region_name=region)
+                instances = _extract_instances(fallback_ec2)
+            except Exception as fb_err:
+                print(f"Fallback describe_instances also unavailable: {fb_err}")
+                instances = []
 
     running_instances = [
         instance
@@ -286,82 +262,47 @@ def get_ec2_cpu_metrics(
     )
 
     # ========================================================
-    # GET ALL EC2 INSTANCES
+    # GET ALL EC2 INSTANCES (WITH GRACEFUL FALLBACK)
     # ========================================================
 
-    instances = []
-
-    paginator = ec2.get_paginator(
-        "describe_instances"
-    )
-
-    for page in paginator.paginate():
-
-        for reservation in page.get(
-            "Reservations",
-            []
-        ):
-
-            for instance in reservation.get(
-                "Instances",
-                []
-            ):
-
-                instances.append({
-
-                    "id":
-                        instance["InstanceId"],
-
-                    "type":
-                        instance.get(
-                            "InstanceType"
-                        ),
-
-                    "state":
-                        instance["State"]["Name"],
-
-                    "region":
-                        region,
-
-                    "private_ip":
-                        instance.get(
-                            "PrivateIpAddress"
-                        ),
-
-                    "public_ip":
-                        instance.get(
-                            "PublicIpAddress"
-                        ),
-
-                    "availability_zone":
-                        instance.get(
-                            "Placement",
-                            {}
-                        ).get(
-                            "AvailabilityZone"
-                        ),
-
-                    "launch_time":
-                        (
-                            instance.get(
-                                "LaunchTime"
-                            ).isoformat()
-                            if instance.get(
-                                "LaunchTime"
-                            )
+    def _fetch_ec2_list(ec2_cli):
+        found = []
+        paginator = ec2_cli.get_paginator("describe_instances")
+        for page in paginator.paginate():
+            for reservation in page.get("Reservations", []):
+                for instance in reservation.get("Instances", []):
+                    found.append({
+                        "id": instance["InstanceId"],
+                        "type": instance.get("InstanceType"),
+                        "state": instance["State"]["Name"],
+                        "region": region,
+                        "private_ip": instance.get("PrivateIpAddress"),
+                        "public_ip": instance.get("PublicIpAddress"),
+                        "availability_zone": instance.get("Placement", {}).get("AvailabilityZone"),
+                        "launch_time": (
+                            instance.get("LaunchTime").isoformat()
+                            if instance.get("LaunchTime")
                             else None
                         ),
+                        "vpc_id": instance.get("VpcId"),
+                        "subnet_id": instance.get("SubnetId"),
+                    })
+        return found
 
-                    "vpc_id":
-                        instance.get(
-                            "VpcId"
-                        ),
-
-                    "subnet_id":
-                        instance.get(
-                            "SubnetId"
-                        ),
-                })
+    instances = []
+    try:
+        instances = _fetch_ec2_list(ec2)
+    except Exception as e:
+        print(f"Warning: describe_instances failed in get_ec2_cpu_metrics ({e}). Attempting fallback...")
+        if aws_access_key_id or role_arn:
+            try:
+                fallback_session = get_aws_session(region=region)
+                ec2 = fallback_session.client("ec2", region_name=region)
+                cloudwatch = fallback_session.client("cloudwatch", region_name=region)
+                instances = _fetch_ec2_list(ec2)
+            except Exception as fb_err:
+                print(f"Fallback describe_instances also unavailable: {fb_err}")
+                instances = []
 
     running_instances = [
         instance

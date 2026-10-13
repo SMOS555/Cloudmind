@@ -186,10 +186,15 @@ function Dashboard({ setActivePage, awsCredentials, updateAwsCredentials }) {
     setMetricsError(false);
     setLoading(true);
 
-    const activeCreds = credsOverride || awsCredentials;
+    const isValidOverride =
+      credsOverride &&
+      typeof credsOverride === "object" &&
+      ("accessKeyId" in credsOverride || "useServerDefaults" in credsOverride);
+    const activeCreds = isValidOverride ? credsOverride : awsCredentials;
 
     try {
       let response;
+      const reg = activeCreds?.region || "ap-south-1";
       if (activeCreds?.accessKeyId && !activeCreds?.useServerDefaults) {
         response = await fetch(`${API_BASE_URL}/api/metrics`, {
           method: "POST",
@@ -200,11 +205,13 @@ function Dashboard({ setActivePage, awsCredentials, updateAwsCredentials }) {
             aws_access_key_id: activeCreds.accessKeyId.trim(),
             aws_secret_access_key: activeCreds.secretAccessKey ? activeCreds.secretAccessKey.trim() : "",
             aws_session_token: activeCreds.sessionToken ? activeCreds.sessionToken.trim() : null,
-            region: activeCreds.region || "ap-south-1",
+            region: reg,
           }),
         });
+        if (!response.ok) {
+          response = await fetch(`${API_BASE_URL}/api/metrics?region=${encodeURIComponent(reg)}`);
+        }
       } else {
-        const reg = activeCreds?.region || "ap-south-1";
         response = await fetch(`${API_BASE_URL}/api/metrics?region=${encodeURIComponent(reg)}`);
       }
 

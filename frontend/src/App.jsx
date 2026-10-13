@@ -67,6 +67,17 @@ function App() {
   const updateAwsCredentials = (newCreds) => {
     setAwsCredentials((prev) => {
       const updated = { ...prev, ...newCreds };
+      if (
+        prev.accessKeyId === updated.accessKeyId &&
+        prev.secretAccessKey === updated.secretAccessKey &&
+        prev.sessionToken === updated.sessionToken &&
+        prev.region === updated.region &&
+        prev.useServerDefaults === updated.useServerDefaults &&
+        prev.accountId === updated.accountId &&
+        prev.arn === updated.arn
+      ) {
+        return prev;
+      }
       try {
         localStorage.setItem(
           "cloudmind_aws_credentials",

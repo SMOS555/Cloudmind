@@ -273,21 +273,11 @@ def test_aws_connection(
         raise
 
     except Exception as e:
-
-        print(
-            "AWS CONNECTION ERROR:",
-            str(e)
-        )
-
+        error_str = str(e)
+        print("AWS CONNECTION ERROR:", error_str)
         raise HTTPException(
-
-            status_code=503,
-
-            detail=(
-                "Unable to connect to AWS. "
-                "Verify the role configuration."
-            )
-
+            status_code=400,
+            detail=f"Unable to connect to AWS: {error_str}"
         )
 
 

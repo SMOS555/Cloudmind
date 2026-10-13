@@ -70,7 +70,14 @@ function Security({ awsCredentials, updateAwsCredentials }) {
       setUseServerDefaults(awsCredentials.useServerDefaults ?? true);
       runSecurityScan(awsCredentials.region, awsCredentials);
     }
-  }, [awsCredentials]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    awsCredentials?.accessKeyId,
+    awsCredentials?.secretAccessKey,
+    awsCredentials?.sessionToken,
+    awsCredentials?.region,
+    awsCredentials?.useServerDefaults,
+  ]);
 
   // ============================================================
   // RUN SECURITY SCAN
@@ -78,7 +85,9 @@ function Security({ awsCredentials, updateAwsCredentials }) {
   const runSecurityScan = async (overrideRegion, overrideCreds = null) => {
     setScanning(true);
     setError("");
-    setLoading(true);
+    if (!securityData) {
+      setLoading(true);
+    }
 
     const activeCreds = overrideCreds || awsCredentials;
     const scanRegion = overrideRegion || activeCreds?.region || region || "ap-south-1";
@@ -101,17 +110,33 @@ function Security({ awsCredentials, updateAwsCredentials }) {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/security/aws/scan`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/security/aws/scan`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchErr) {
+        // Automatic 1-time retry on transient network / connection reset
+        await new Promise((r) => setTimeout(r, 600));
+        response = await fetch(
+          `${API_BASE_URL}/security/aws/scan?region=${encodeURIComponent(scanRegion)}`
+        );
+      }
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Scan failed with status ${response.status}`);
+        const fallbackRes = await fetch(
+          `${API_BASE_URL}/security/aws/scan?region=${encodeURIComponent(scanRegion)}`
+        );
+        if (fallbackRes.ok) {
+          response = fallbackRes;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || `Scan failed with status ${response.status}`);
+        }
       }
 
       const data = await response.json();
@@ -119,18 +144,24 @@ function Security({ awsCredentials, updateAwsCredentials }) {
 
       // Save credentials globally if requested
       if (rememberCreds && updateAwsCredentials) {
+        const shouldUseServer = data?.used_server_fallback ? true : isServer;
+        if (data?.used_server_fallback) {
+          setUseServerDefaults(true);
+        }
         updateAwsCredentials({
-          accessKeyId: key,
-          secretAccessKey: secret,
-          sessionToken: token,
+          accessKeyId: shouldUseServer ? "" : key,
+          secretAccessKey: shouldUseServer ? "" : secret,
+          sessionToken: shouldUseServer ? "" : token,
           region: scanRegion,
-          useServerDefaults: isServer,
+          useServerDefaults: shouldUseServer,
           accountId: data?.account_id || null,
         });
       }
     } catch (err) {
       console.error("Security scan error:", err);
-      setError(err.message || "Failed to complete AWS security audit.");
+      if (!securityData) {
+        setError(err.message || "Failed to complete AWS security audit.");
+      }
     } finally {
       setLoading(false);
       setScanning(false);
