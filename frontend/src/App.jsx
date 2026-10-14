@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 import { supabase } from "./utils/supabase";
 
-import CloudProviders from "./components/CloudProviders";
 import Sidebar from "./components/Sidebar.jsx";
 import Topbar from "./components/Topbar";
 import Dashboard from "./pages/Dashboard";
@@ -224,16 +223,6 @@ function App() {
             updateAwsCredentials={updateAwsCredentials}
           />
         );
-
-
-      case "providers":
-
-         return (
-           <CloudProviders
-             awsCredentials={awsCredentials}
-             updateAwsCredentials={updateAwsCredentials}
-           />
-         );
 
 
       case "load":

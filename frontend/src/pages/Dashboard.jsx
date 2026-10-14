@@ -679,8 +679,8 @@ function Dashboard({ setActivePage, awsCredentials, updateAwsCredentials }) {
                 <h3>Global AWS Cloud Access Configuration</h3>
                 <p>
                   These credentials apply globally across all sidebar modules: <strong>Dashboard</strong>,{" "}
-                  <strong>AI Cloud Agent</strong>, <strong>Cloud Providers</strong>,{" "}
-                  <strong>Load Balancing</strong>, <strong>Security Scan</strong>, and <strong>Energy</strong>.
+                  <strong>AI Cloud Agent</strong>, <strong>Load Balancing</strong>,{" "}
+                  <strong>Security Scan</strong>, and <strong>Energy</strong>.
                 </p>
               </div>
             </div>
@@ -1449,10 +1449,10 @@ function Dashboard({ setActivePage, awsCredentials, updateAwsCredentials }) {
             <button
               className="text-button"
               onClick={() =>
-                goTo("providers")
+                goTo("load")
               }
             >
-              Manage →
+              Balance Load →
             </button>
 
           </div>

@@ -14,8 +14,10 @@ class Server(BaseModel):
 
     id: str
     cpu: float
-    ram: float
-    traffic: int
+    ram: float = 0.0
+    traffic: float = 0.0
+    type: str | None = None
+    ram_source: str | None = None
 
 
 class LoadBalancingRequest(BaseModel):

@@ -21,17 +21,17 @@ def analyze_load(servers):
     # ==========================================
 
     total_cpu = sum(
-        server["cpu"]
+        float(server.get("cpu", 0.0))
         for server in servers
     )
 
     total_ram = sum(
-        server["ram"]
+        float(server.get("ram", 0.0))
         for server in servers
     )
 
     total_traffic = sum(
-        server["traffic"]
+        float(server.get("traffic", 0.0))
         for server in servers
     )
 
@@ -57,10 +57,9 @@ def analyze_load(servers):
 
     for server in servers:
 
-        cpu = server["cpu"]
-        ram = server["ram"]
-        traffic = server["traffic"]
-
+        cpu = round(float(server.get("cpu", 0.0)), 1)
+        ram = round(float(server.get("ram", 0.0)), 1)
+        traffic = round(float(server.get("traffic", 0.0)), 2)
 
         if cpu >= 85 or ram >= 85:
 
@@ -78,13 +77,11 @@ def analyze_load(servers):
         results.append({
 
             "id": server["id"],
-
+            "type": server.get("type") or server.get("instance_type", "ec2"),
             "cpu": cpu,
-
             "ram": ram,
-
             "traffic": traffic,
-
+            "ram_source": server.get("ram_source", "Connected"),
             "status": status,
 
         })
@@ -129,8 +126,7 @@ def analyze_load(servers):
 
                 healthy_servers,
 
-                key=lambda server:
-                    server["cpu"]
+                key=lambda s: (s["cpu"] * 0.5 + s["ram"] * 0.5)
 
             )
 
@@ -145,9 +141,10 @@ def analyze_load(servers):
 
                 "message":
                     (
-                        f"Redistribute workload from "
-                        f"{overloaded['id']} to "
-                        f"{target['id']}"
+                        f"Redistribute workload from {overloaded['id']} "
+                        f"(CPU {overloaded['cpu']}%, RAM {overloaded['ram']}%) "
+                        f"to target node {target['id']} "
+                        f"(CPU {target['cpu']}%, RAM {target['ram']}%)"
                     ),
 
             })
@@ -157,11 +154,11 @@ def analyze_load(servers):
     # OVERALL STATUS
     # ==========================================
 
-    if average_cpu > 80:
+    if average_cpu > 80 or average_ram > 80:
 
         overall_status = "Critical"
 
-    elif average_cpu > 65:
+    elif average_cpu > 65 or average_ram > 65:
 
         overall_status = "High Load"
 
@@ -186,7 +183,7 @@ def analyze_load(servers):
             round(average_ram, 2),
 
         "total_traffic":
-            total_traffic,
+            round(total_traffic, 2),
 
         "overall_status":
             overall_status,

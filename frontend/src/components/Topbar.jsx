@@ -150,7 +150,7 @@ function Topbar({ onLogout, user, setActivePage, awsCredentials, updateAwsCreden
               />
 
               <div className="search-hint">
-                Search resources, providers, analytics...
+                Search resources, telemetry, security, analytics...
               </div>
 
             </div>

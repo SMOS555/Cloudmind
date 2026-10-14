@@ -2,7 +2,6 @@ function Sidebar({ activePage, setActivePage }) {
   const menuItems = [
     { id: "dashboard", icon: "◈", label: "Dashboard" },
     { id: "ai-agent", icon: "✦", label: "AI Cloud Agent" },
-    { id: "providers", icon: "☁", label: "Cloud Providers" },
     { id: "load", icon: "⇄", label: "Load Balancing" },
     { id: "security", icon: "◉", label: "Security" },
     { id: "energy", icon: "ϟ", label: "Energy" },
