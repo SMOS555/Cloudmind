@@ -680,7 +680,7 @@ function Dashboard({ setActivePage, awsCredentials, updateAwsCredentials }) {
                 <p>
                   These credentials apply globally across all sidebar modules: <strong>Dashboard</strong>,{" "}
                   <strong>AI Cloud Agent</strong>, <strong>Load Balancing</strong>,{" "}
-                  <strong>Security Scan</strong>, and <strong>Energy</strong>.
+                  <strong>Security Scan</strong>, <strong>Energy Intelligence</strong>, and <strong>Carbon Arbitrage</strong>.
                 </p>
               </div>
             </div>

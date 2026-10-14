@@ -9,6 +9,7 @@ import AIAgent from "./pages/AIAgent";
 import Login from "./pages/Login";
 import Security from "./pages/Security";
 import Energy from "./pages/Energy";
+import CarbonArbitrage from "./pages/CarbonArbitrage";
 import LoadBalancing from "./pages/LoadBalancing";
 import Settings from "./pages/Settings";
 
@@ -251,6 +252,18 @@ function App() {
           <Energy
             awsCredentials={awsCredentials}
             updateAwsCredentials={updateAwsCredentials}
+            setActivePage={setActivePage}
+          />
+        );
+
+
+      case "carbon-arbitrage":
+
+        return (
+          <CarbonArbitrage
+            awsCredentials={awsCredentials}
+            updateAwsCredentials={updateAwsCredentials}
+            setActivePage={setActivePage}
           />
         );
 

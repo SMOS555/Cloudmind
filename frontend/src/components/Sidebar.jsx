@@ -4,7 +4,8 @@ function Sidebar({ activePage, setActivePage }) {
     { id: "ai-agent", icon: "✦", label: "AI Cloud Agent" },
     { id: "load", icon: "⇄", label: "Load Balancing" },
     { id: "security", icon: "◉", label: "Security" },
-    { id: "energy", icon: "ϟ", label: "Energy" },
+    { id: "energy", icon: "ϟ", label: "Energy Intelligence" },
+    { id: "carbon-arbitrage", icon: "🌍", label: "Carbon Arbitrage" },
   ];
 
   return (

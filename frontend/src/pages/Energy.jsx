@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 const API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
 
-function Energy({ awsCredentials }) {
+function Energy({ awsCredentials, setActivePage }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -901,128 +901,24 @@ Currently running ${simInstanceCount}x ${simCurrentType} EC2 instances in AWS ${
           GREENOPS 2.0: REGIONAL CARBON GRID ARBITRAGE & PUE
       ===================================================== */}
       <section className="greenops-grid-section">
-        <div className="section-header-row">
-          <div>
-            <span className="panel-eyebrow">GREEN SOFTWARE FOUNDATION (SCI SPECIFICATION)</span>
-            <h2>Regional Grid Carbon Arbitrage & Datacenter PUE</h2>
-            <p>
-              Quantify electrical carbon intensity across AWS regions, evaluate PUE datacenter overhead,
-              and calculate instant emissions reduction via low-carbon region migration.
-            </p>
-          </div>
-        </div>
-
-        {/* THREE GREENOPS CARDS */}
-        <div className="greenops-kpi-grid">
-          <div className="greenops-card">
-            <div className="gcard-header">
-              <span className="gcard-icon">⚡</span>
-              <span className="gcard-badge ultra-green">AWS Benchmark</span>
-            </div>
-            <div className="gcard-body">
-              <span className="gcard-val">1.15 PUE</span>
-              <span className="gcard-title">Power Usage Effectiveness</span>
-              <p className="gcard-desc">
-                AWS infrastructure operates at 1.15 PUE vs industry on-premise baseline of 1.58 PUE (saves 27.2% facility overhead).
+        <div className="panel" style={{ background: "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(56, 189, 248, 0.06) 50%, rgba(15, 23, 42, 0.8) 100%)", border: "1px solid rgba(52, 211, 153, 0.3)" }}>
+          <div className="panel-header" style={{ alignItems: "center" }}>
+            <div>
+              <span className="panel-eyebrow">DEDICATED MODULE AVAILABLE IN SIDEBAR</span>
+              <h2>🌍 Regional Grid Carbon Arbitrage & Datacenter PUE</h2>
+              <p>
+                Model -88.0% electrical CO₂e reduction by evaluating electrical carbon intensity across Mumbai, Oregon, Frankfurt, and Ireland with AWS Datacenter 1.15 PUE benchmarking.
               </p>
             </div>
-          </div>
-
-          <div className="greenops-card">
-            <div className="gcard-header">
-              <span className="gcard-icon">🌱</span>
-              <span className="gcard-badge green">Scope 2 vs Scope 3</span>
-            </div>
-            <div className="gcard-body">
-              <div className="scope-split-row">
-                <div>
-                  <strong>{data.scope_breakdown?.scope_2_operational_kg || "0.76"} kg</strong>
-                  <small>Scope 2 (Operational)</small>
-                </div>
-                <div>
-                  <strong>{data.scope_breakdown?.scope_3_embodied_kg || "0.20"} kg</strong>
-                  <small>Scope 3 (Embodied)</small>
-                </div>
-              </div>
-              <p className="gcard-desc">
-                SCI Equation: <code>SCI = ((E × I) + M) / R</code> measuring real operational and hardware lifecycle footprint.
-              </p>
-            </div>
-          </div>
-
-          <div className="greenops-card">
-            <div className="gcard-header">
-              <span className="gcard-icon">🌍</span>
-              <span className="gcard-badge arbitrage">Carbon Arbitrage</span>
-            </div>
-            <div className="gcard-body">
-              <span className="gcard-val text-emerald">-88.0% CO₂e</span>
-              <span className="gcard-title">Shifting to Oregon (Hydro)</span>
-              <p className="gcard-desc">
-                Moving batch workloads from Mumbai (708 gCO₂/kWh) to Oregon (85 gCO₂/kWh) avoids 88% of electrical emissions.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* REGIONAL CARBON GRID COMPARISON TABLE */}
-        <div className="regional-grid-card">
-          <div className="regional-grid-header">
-            <h3>🌐 Global AWS Grid Carbon Intensity Comparison</h3>
-            <span className="grid-source-tag">Data Source: Green Software Foundation SCI Index</span>
-          </div>
-
-          <div className="grid-table-wrapper">
-            <table className="regional-grid-table">
-              <thead>
-                <tr>
-                  <th>AWS Region</th>
-                  <th>Grid Location</th>
-                  <th>Carbon Intensity</th>
-                  <th>Relative Cleanliness</th>
-                  <th>Carbon Arbitrage vs Mumbai</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.regional_carbon_grid || [
-                  { region: "ap-south-1", name: "Asia Pacific (Mumbai)", grid_gco2_per_kwh: 708, clean_factor: "Coal-Intensive Grid (Baseline)", clean_badge: "High Carbon", savings_vs_mumbai: "0%" },
-                  { region: "us-east-1", name: "US East (N. Virginia)", grid_gco2_per_kwh: 380, clean_factor: "46% cleaner than Mumbai", clean_badge: "Moderate Carbon", savings_vs_mumbai: "-46.3%" },
-                  { region: "eu-central-1", name: "Europe (Frankfurt)", grid_gco2_per_kwh: 310, clean_factor: "56% cleaner than Mumbai", clean_badge: "Low Carbon", savings_vs_mumbai: "-56.2%" },
-                  { region: "eu-west-1", name: "Europe (Ireland - Wind)", grid_gco2_per_kwh: 280, clean_factor: "60% cleaner than Mumbai", clean_badge: "Low Carbon", savings_vs_mumbai: "-60.5%" },
-                  { region: "us-west-2", name: "US West (Oregon - Hydro)", grid_gco2_per_kwh: 85, clean_factor: "🌱 88% cleaner than Mumbai", clean_badge: "Ultra-Green", savings_vs_mumbai: "-88.0%" }
-                ]).map((r) => (
-                  <tr key={r.region} className={r.region === (data.region || "ap-south-1") ? "current-region-row" : ""}>
-                    <td>
-                      <code>{r.region}</code>
-                      {r.region === (data.region || "ap-south-1") && <span className="active-region-pill">Active</span>}
-                    </td>
-                    <td><strong>{r.name}</strong></td>
-                    <td>
-                      <span className="grid-intensity-val">{r.grid_gco2_per_kwh} gCO₂e/kWh</span>
-                    </td>
-                    <td>
-                      <span className={`clean-badge ${r.clean_badge?.toLowerCase().replace(" ", "-")}`}>
-                        {r.clean_badge}
-                      </span>
-                    </td>
-                    <td>
-                      <strong className={r.savings_vs_mumbai?.startsWith("-") ? "text-emerald" : ""}>
-                        {r.savings_vs_mumbai}
-                      </strong>
-                    </td>
-                    <td>
-                      <button
-                        className="btn-arbitrage-select"
-                        onClick={() => setSelectedArbitrageRegion(r.region)}
-                      >
-                        {selectedArbitrageRegion === r.region ? "✓ Selected" : "Compare"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {setActivePage && (
+              <button
+                className="primary-button"
+                style={{ whiteSpace: "nowrap" }}
+                onClick={() => setActivePage("carbon-arbitrage")}
+              >
+                Open Carbon Arbitrage →
+              </button>
+            )}
           </div>
         </div>
       </section>
